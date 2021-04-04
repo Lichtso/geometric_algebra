@@ -1,4 +1,5 @@
 [![actions](https://github.com/Lichtso/geometric_algebra/actions/workflows/actions.yaml/badge.svg)](https://github.com/Lichtso/geometric_algebra/actions/workflows/actions.yaml)
+[![Docs](https://docs.rs/geometric_algebra/badge.svg)](https://docs.rs/geometric_algebra/)
 [![crates.io](https://img.shields.io/crates/v/geometric_algebra.svg)](https://crates.io/crates/geometric_algebra)
 
 ## About
