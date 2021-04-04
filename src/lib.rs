@@ -1,7 +1,7 @@
 #![cfg_attr(all(target_arch = "wasm32", target_feature = "simd128"), feature(wasm_simd))]
 #![cfg_attr(all(any(target_arch = "arm", target_arch = "aarch64"), target_feature = "neon"), feature(stdsimd))]
 
-pub use simd::*;
+pub mod simd;
 pub mod complex;
 pub mod ppga2d;
 pub mod ppga3d;
@@ -54,49 +54,6 @@ impl complex::MultiVector {
     }
 }
 
-impl ppga2d::Rotor {
-    pub fn from_angle(mut angle: f32) -> Self {
-        angle *= 0.5;
-        Self {
-            g0: simd::Simd32x2::from([angle.cos(), angle.sin()]),
-        }
-    }
-
-    pub fn angle(self) -> f32 {
-        self.g0.get_f(1).atan2(self.g0.get_f(0)) * 2.0
-    }
-}
-
-impl ppga2d::Point {
-    pub fn from_coordinates(coordinates: [f32; 2]) -> Self {
-        Self {
-            g0: simd::Simd32x3::from([1.0, coordinates[0], coordinates[1]]),
-        }
-    }
-
-    pub fn from_direction(coordinates: [f32; 2]) -> Self {
-        Self {
-            g0: simd::Simd32x3::from([0.0, coordinates[0], coordinates[1]]),
-        }
-    }
-}
-
-impl ppga2d::Plane {
-    pub fn from_normal_and_distance(normal: [f32; 2], distance: f32) -> Self {
-        Self {
-            g0: simd::Simd32x3::from([distance, normal[1], -normal[0]]),
-        }
-    }
-}
-
-impl ppga2d::Translator {
-    pub fn from_coordinates(coordinates: [f32; 2]) -> Self {
-        Self {
-            g0: simd::Simd32x3::from([1.0, coordinates[1] * 0.5, coordinates[0] * -0.5]),
-        }
-    }
-}
-
 /// All elements set to `0.0`
 pub trait Zero {
     fn zero() -> Self;
@@ -113,66 +70,86 @@ pub trait Dual {
     fn dual(self) -> Self::Output;
 }
 
+/// Negates elements with `grade % 2 == 1`
+/// 
+/// Also called main involution
+pub trait Automorph {
+    type Output;
+    fn automorph(self) -> Self::Output;
+}
+
+/// Negates elements with `grade % 4 >= 2`
+///
 /// Also called reversion
 pub trait Transpose {
     type Output;
     fn transpose(self) -> Self::Output;
 }
 
-/// Also called involution
-pub trait Automorph {
-    type Output;
-    fn automorph(self) -> Self::Output;
-}
-
+/// Negates elements with `(grade + 3) % 4 < 2`
 pub trait Conjugate {
     type Output;
     fn conjugate(self) -> Self::Output;
 }
 
+/// General multi vector multiplication
 pub trait GeometricProduct<T> {
     type Output;
     fn geometric_product(self, other: T) -> Self::Output;
 }
 
+/// Dual of the geometric product grade filtered by `t == r + s`
+/// 
 /// Also called join
 pub trait RegressiveProduct<T> {
     type Output;
     fn regressive_product(self, other: T) -> Self::Output;
 }
 
+/// Geometric product grade filtered by `t == r + s`
+/// 
 /// Also called meet or exterior product
 pub trait OuterProduct<T> {
     type Output;
     fn outer_product(self, other: T) -> Self::Output;
 }
 
+/// Geometric product grade filtered by `t == (r - s).abs()`
+/// 
 /// Also called fat dot product
 pub trait InnerProduct<T> {
     type Output;
     fn inner_product(self, other: T) -> Self::Output;
 }
 
+/// Geometric product grade filtered by `t == s - r`
 pub trait LeftContraction<T> {
     type Output;
     fn left_contraction(self, other: T) -> Self::Output;
 }
 
+/// Geometric product grade filtered by `t == r - s`
 pub trait RightContraction<T> {
     type Output;
     fn right_contraction(self, other: T) -> Self::Output;
 }
 
+/// Geometric product grade filtered by `t == 0`
 pub trait ScalarProduct<T> {
     type Output;
     fn scalar_product(self, other: T) -> Self::Output;
 }
 
+/// `self * other * self`
+/// 
+/// Basically a sandwich product without an involution
 pub trait Reflection<T> {
     type Output;
     fn reflection(self, other: T) -> Self::Output;
 }
 
+/// `self * other * self.transpose()`
+/// 
 /// Also called sandwich product
 pub trait Transformation<T> {
     type Output;
@@ -185,19 +162,23 @@ pub trait SquaredMagnitude {
     fn squared_magnitude(self) -> Self::Output;
 }
 
+/// Length as scalar
+/// 
 /// Also called amplitude, absolute value or norm
 pub trait Magnitude {
     type Output;
     fn magnitude(self) -> Self::Output;
 }
 
-/// Also called normalize
+/// Direction without magnitude (set to scalar `1.0`)
+/// 
+/// Also called sign or normalize
 pub trait Signum {
     type Output;
     fn signum(self) -> Self::Output;
 }
 
-/// Exponentiation by scalar negative one
+/// Exponentiation by scalar `-1.0`
 pub trait Inverse {
     type Output;
     fn inverse(self) -> Self::Output;

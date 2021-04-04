@@ -1,6 +1,3 @@
-#![cfg_attr(all(target_arch = "wasm32", target_feature = "simd128"), feature(wasm_simd))]
-#![cfg_attr(all(any(target_arch = "arm", target_arch = "aarch64"), target_feature = "neon"), feature(stdsimd))]
-
 #[cfg(target_arch = "aarch64")]
 pub use std::arch::aarch64::*;
 #[cfg(target_arch = "arm")]
@@ -65,7 +62,7 @@ pub union Simd32x2 {
 macro_rules! match_architecture {
     ($Simd:ident, $native:tt, $fallback:tt,) => {{
         #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "arm", target_arch = "aarch64", target_arch = "wasm32"))]
-        unsafe { $Simd $native }
+        { $Simd $native }
         #[cfg(not(any(target_arch = "x86", target_arch = "x86_64", target_arch = "arm", target_arch = "aarch64", target_arch = "wasm32")))]
         unsafe { $Simd $fallback }
     }};
@@ -86,14 +83,14 @@ macro_rules! swizzle {
     ($self:expr, $x:literal, $y:literal, $z:literal, $w:literal) => {
         $crate::match_architecture!(
             Simd32x4,
-            { f128: $crate::_mm_permute_ps($self.f128, ($x as i32) | (($y as i32) << 2) | (($z as i32) << 4) | (($w as i32) << 6)) },
+            { f128: $crate::simd::_mm_permute_ps($self.f128, ($x as i32) | (($y as i32) << 2) | (($z as i32) << 4) | (($w as i32) << 6)) },
             { f32x4: [
                 $self.f32x4[$x],
                 $self.f32x4[$y],
                 $self.f32x4[$z],
                 $self.f32x4[$w],
             ] },
-            { v128: $crate::v32x4_shuffle::<$x, $y, $z, $w>($self.v128, $self.v128) },
+            { v128: $crate::simd::v32x4_shuffle::<$x, $y, $z, $w>($self.v128, $self.v128) },
             { f32x4: [
                 $self.f32x4[$x],
                 $self.f32x4[$y],
@@ -252,7 +249,7 @@ impl std::ops::Add<Simd32x3> for Simd32x3 {
     fn add(self, other: Self) -> Self {
         match_architecture!(
             Self,
-            { v32x4: self.v32x4 + other.v32x4 },
+            { v32x4: unsafe { self.v32x4 + other.v32x4 } },
             { f32x3: [
                 self.f32x3[0] + other.f32x3[0],
                 self.f32x3[1] + other.f32x3[1],
@@ -268,7 +265,7 @@ impl std::ops::Add<Simd32x2> for Simd32x2 {
     fn add(self, other: Self) -> Self {
         match_architecture!(
             Self,
-            { v32x4: self.v32x4 + other.v32x4 },
+            { v32x4: unsafe { self.v32x4 + other.v32x4 } },
             { f32x2: [
                 self.f32x2[0] + other.f32x2[0],
                 self.f32x2[1] + other.f32x2[1],
@@ -302,7 +299,7 @@ impl std::ops::Sub<Simd32x3> for Simd32x3 {
     fn sub(self, other: Self) -> Self {
         match_architecture!(
             Self,
-            { v32x4: self.v32x4 - other.v32x4 },
+            { v32x4: unsafe { self.v32x4 - other.v32x4 } },
             { f32x3: [
                 self.f32x3[0] - other.f32x3[0],
                 self.f32x3[1] - other.f32x3[1],
@@ -318,7 +315,7 @@ impl std::ops::Sub<Simd32x2> for Simd32x2 {
     fn sub(self, other: Self) -> Self {
         match_architecture!(
             Self,
-            { v32x4: self.v32x4 - other.v32x4 },
+            { v32x4: unsafe { self.v32x4 - other.v32x4 } },
             { f32x2: [
                 self.f32x2[0] - other.f32x2[0],
                 self.f32x2[1] - other.f32x2[1],
@@ -352,7 +349,7 @@ impl std::ops::Mul<Simd32x3> for Simd32x3 {
     fn mul(self, other: Self) -> Self {
         match_architecture!(
             Self,
-            { v32x4: self.v32x4 * other.v32x4 },
+            { v32x4: unsafe { self.v32x4 * other.v32x4 } },
             { f32x3: [
                 self.f32x3[0] * other.f32x3[0],
                 self.f32x3[1] * other.f32x3[1],
@@ -368,7 +365,7 @@ impl std::ops::Mul<Simd32x2> for Simd32x2 {
     fn mul(self, other: Self) -> Self {
         match_architecture!(
             Self,
-            { v32x4: self.v32x4 * other.v32x4 },
+            { v32x4: unsafe { self.v32x4 * other.v32x4 } },
             { f32x2: [
                 self.f32x2[0] * other.f32x2[0],
                 self.f32x2[1] * other.f32x2[1],

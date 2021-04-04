@@ -170,7 +170,7 @@ pub fn emit_code<W: std::io::Write>(collector: &mut W, ast_node: &AstNode, inden
         AstNode::None => {}
         AstNode::Preamble => {
             collector.write_all(b"#![allow(clippy::assign_op_pattern)]\n")?;
-            collector.write_all(b"use crate::*;\nuse std::ops::{Add, Neg, Sub, Mul, Div};\n\n")?;
+            collector.write_all(b"use crate::{*, simd::*};\nuse std::ops::{Add, Neg, Sub, Mul, Div};\n\n")?;
         }
         AstNode::ClassDefinition { class } => {
             collector.write_fmt(format_args!("#[derive(Clone, Copy)]\npub struct {} {{\n", class.class_name))?;

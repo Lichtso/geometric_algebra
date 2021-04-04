@@ -3,3 +3,4 @@ name = "codegen"
 version = "0.1.0"
 authors = ["Alexander Meißner <AlexanderMeissner@gmx.net>"]
 edition = "2018"
+publish = false
