@@ -1,0 +1,99 @@
+name: actions
+on: [push, pull_request]
+jobs:
+  build-codegen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Compile Code Generator
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path codegen/Cargo.toml
+      - uses: actions/upload-artifact@v2
+        with:
+          name: codegen-linux-bin
+          path: codegen/target/debug/codegen
+  run-codegen:
+    needs: build-codegen
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        algebra:
+          - name: complex
+            descriptor: "complex:-1;Scalar:1;MultiVector:1,e0"
+          - name: ppga2d
+            descriptor: "ppga2d:0,1,1;Scalar:1;MultiVector:1,e12,e1,e2|e0,e012,e01,e02;Rotor:1,e12;Point:e12,e01,e02;Plane:e0,e2,e1;Translator:1,e01,e02;Motor:1,e12,e01,e02;MotorDual:e012,e0,e2,e1"
+          - name: ppga3d
+            descriptor: "ppga3d:0,1,1,1;Scalar:1;MultiVector:1,e23,e13,e12|e0,e023,e013,e012|e123,e1,e2,e3|e0123,e01,e02,e03;Rotor:1,e23,e13,e12;Point:e123,e023,e013,e012;Plane:e0,e1,e2,e3;Line:e01,e02,e03|e23,e13,e12;Translator:1,e01,e02,e03;Motor:1,e23,e13,e12|e0123,e01,e02,e03;PointAndPlane:e123,e023,e013,e012|e0,e1,e2,e3"
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: codegen-linux-bin
+          path: codegen
+      - run: chmod +x codegen/codegen
+      - run: mkdir src
+      - name: Generate Source Code
+        working-directory: codegen
+        run: ./codegen "${{ matrix.algebra.descriptor }}"
+      - uses: actions/upload-artifact@v2
+        with:
+          name: lib-src
+          path: src/${{ matrix.algebra.name }}.*
+  test-rust:
+    needs: run-codegen
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - triple: i686-unknown-linux-gnu
+            toolchain: stable
+          - triple: x86_64-unknown-linux-gnu
+            toolchain: stable
+          # - triple: arm-unknown-linux-gnueabihf
+          #   toolchain: nightly
+          #   rustflags: -C target-feature=+neon
+          - triple: aarch64-unknown-linux-gnu
+            toolchain: nightly
+          - triple: wasm32-unknown-unknown
+            toolchain: nightly
+            rustflags: --cfg=web_sys_unstable_apis -C target-feature=+simd128
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - uses: actions/download-artifact@v2
+        with:
+          name: lib-src
+          path: src
+      - name: Install Dependencies
+        uses: actions-rs/toolchain@v1
+        with:
+          target: ${{ matrix.target.triple }}
+          toolchain: ${{ matrix.target.toolchain }}
+          override: true
+      - name: Cross Compile Rust
+        uses: actions-rs/cargo@v1
+        env:
+          RUSTFLAGS: ${{ matrix.target.rustflags }}
+        with:
+          command: build
+          args: --target ${{ matrix.target.triple }}
+  test-glsl:
+    needs: run-codegen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: lib-src
+          path: src
+      - name: Install Dependencies
+        run: |
+          curl -GO https://storage.googleapis.com/shaderc/artifacts/prod/graphics_shader_compiler/shaderc/linux/continuous_clang_release/357/20210315-190728/install.tgz
+          tar -xzf install.tgz install/bin/glslc
+      - name: Validate GLSL
+        run: |
+          printf "#version 460\nvoid main() {}\n" > frame.glsl
+          find src/*.glsl | while read line;
+            do cat frame.glsl $line | install/bin/glslc -fshader-stage=comp -
+          done
