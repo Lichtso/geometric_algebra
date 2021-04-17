@@ -1,10 +1,10 @@
 #![cfg_attr(all(target_arch = "wasm32", target_feature = "simd128"), feature(wasm_simd))]
 #![cfg_attr(all(any(target_arch = "arm", target_arch = "aarch64"), target_feature = "neon"), feature(stdsimd))]
 
-pub mod simd;
 pub mod complex;
 pub mod ppga2d;
 pub mod ppga3d;
+pub mod simd;
 
 impl complex::Scalar {
     pub const fn new(real: f32) -> Self {
@@ -34,11 +34,11 @@ impl complex::MultiVector {
     }
 
     pub fn real(self) -> f32 {
-        self.g0.get_f(0)
+        self.g0[0]
     }
 
     pub fn imaginary(self) -> f32 {
-        self.g0.get_f(1)
+        self.g0[1]
     }
 
     pub fn from_polar(magnitude: f32, angle: f32) -> Self {
@@ -71,7 +71,7 @@ pub trait Dual {
 }
 
 /// Negates elements with `grade % 2 == 1`
-/// 
+///
 /// Also called main involution
 pub trait Automorph {
     type Output;
@@ -99,7 +99,7 @@ pub trait GeometricProduct<T> {
 }
 
 /// Dual of the geometric product grade filtered by `t == r + s`
-/// 
+///
 /// Also called join
 pub trait RegressiveProduct<T> {
     type Output;
@@ -107,7 +107,7 @@ pub trait RegressiveProduct<T> {
 }
 
 /// Geometric product grade filtered by `t == r + s`
-/// 
+///
 /// Also called meet or exterior product
 pub trait OuterProduct<T> {
     type Output;
@@ -115,7 +115,7 @@ pub trait OuterProduct<T> {
 }
 
 /// Geometric product grade filtered by `t == (r - s).abs()`
-/// 
+///
 /// Also called fat dot product
 pub trait InnerProduct<T> {
     type Output;
@@ -141,7 +141,7 @@ pub trait ScalarProduct<T> {
 }
 
 /// `self * other * self`
-/// 
+///
 /// Basically a sandwich product without an involution
 pub trait Reflection<T> {
     type Output;
@@ -149,7 +149,7 @@ pub trait Reflection<T> {
 }
 
 /// `self * other * self.transpose()`
-/// 
+///
 /// Also called sandwich product
 pub trait Transformation<T> {
     type Output;
@@ -163,7 +163,7 @@ pub trait SquaredMagnitude {
 }
 
 /// Length as scalar
-/// 
+///
 /// Also called amplitude, absolute value or norm
 pub trait Magnitude {
     type Output;
@@ -171,7 +171,7 @@ pub trait Magnitude {
 }
 
 /// Direction without magnitude (set to scalar `1.0`)
-/// 
+///
 /// Also called sign or normalize
 pub trait Signum {
     type Output;

@@ -1,3 +1,5 @@
+use std::ops::{Index, IndexMut};
+
 #[cfg(target_arch = "aarch64")]
 pub use std::arch::aarch64::*;
 #[cfg(target_arch = "arm")]
@@ -122,33 +124,63 @@ macro_rules! swizzle {
     };
 }
 
-impl Simd32x4 {
-    pub fn get_f(&self, index: usize) -> f32 {
-        unsafe { self.f32x4[index] }
-    }
+impl Index<usize> for Simd32x4 {
+    type Output = f32;
 
-    pub fn set_f(&mut self, index: usize, value: f32) {
-        unsafe { self.f32x4[index] = value; }
+    fn index(&self, index: usize) -> &Self::Output {
+        unsafe { &self.f32x4[index] }
     }
 }
 
-impl Simd32x3 {
-    pub fn get_f(&self, index: usize) -> f32 {
-        unsafe { self.f32x3[index] }
-    }
+impl Index<usize> for Simd32x3 {
+    type Output = f32;
 
-    pub fn set_f(&mut self, index: usize, value: f32) {
-        unsafe { self.f32x3[index] = value; }
+    fn index(&self, index: usize) -> &Self::Output {
+        unsafe { &self.f32x3[index] }
     }
 }
 
-impl Simd32x2 {
-    pub fn get_f(&self, index: usize) -> f32 {
-        unsafe { self.f32x2[index] }
-    }
+impl Index<usize> for Simd32x2 {
+    type Output = f32;
 
-    pub fn set_f(&mut self, index: usize, value: f32) {
-        unsafe { self.f32x2[index] = value; }
+    fn index(&self, index: usize) -> &Self::Output {
+        unsafe { &self.f32x2[index] }
+    }
+}
+
+impl IndexMut<usize> for Simd32x4 {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        unsafe { &mut self.f32x4[index] }
+    }
+}
+
+impl IndexMut<usize> for Simd32x3 {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        unsafe { &mut self.f32x3[index] }
+    }
+}
+
+impl IndexMut<usize> for Simd32x2 {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        unsafe { &mut self.f32x2[index] }
+    }
+}
+
+impl std::convert::From<Simd32x4> for [f32; 4] {
+    fn from(simd: Simd32x4) -> Self {
+        unsafe { simd.f32x4 }
+    }
+}
+
+impl std::convert::From<Simd32x3> for [f32; 3] {
+    fn from(simd: Simd32x3) -> Self {
+        unsafe { simd.f32x3 }
+    }
+}
+
+impl std::convert::From<Simd32x2> for [f32; 2] {
+    fn from(simd: Simd32x2) -> Self {
+        unsafe { simd.f32x2 }
     }
 }
 
@@ -196,30 +228,33 @@ impl std::convert::From<f32> for Simd32x2 {
 
 impl std::fmt::Debug for Simd32x4 {
     fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.debug_tuple("Vec4")
-            .field(&self.get_f(0))
-            .field(&self.get_f(1))
-            .field(&self.get_f(2))
-            .field(&self.get_f(3))
+        formatter
+            .debug_tuple("Vec4")
+            .field(&self[0])
+            .field(&self[1])
+            .field(&self[2])
+            .field(&self[3])
             .finish()
     }
 }
 
 impl std::fmt::Debug for Simd32x3 {
     fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.debug_tuple("Vec3")
-            .field(&self.get_f(0))
-            .field(&self.get_f(1))
-            .field(&self.get_f(2))
+        formatter
+            .debug_tuple("Vec3")
+            .field(&self[0])
+            .field(&self[1])
+            .field(&self[2])
             .finish()
     }
 }
 
 impl std::fmt::Debug for Simd32x2 {
     fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.debug_tuple("Vec2")
-            .field(&self.get_f(0))
-            .field(&self.get_f(1))
+        formatter
+            .debug_tuple("Vec2")
+            .field(&self[0])
+            .field(&self[1])
             .finish()
     }
 }

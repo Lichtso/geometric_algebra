@@ -1,5 +1,5 @@
 use crate::{
-    ast::{AstNode, DataType, Expression, ExpressionContent},
+    ast::{AstNode, DataType, Expression, ExpressionContent, Parameter},
     emit::{camel_to_snake_case, emit_indentation},
 };
 
@@ -72,7 +72,7 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
             if expression.size == 1 {
                 emit_expression(collector, &inner_expression)?;
                 if inner_expression.size > 1 {
-                    collector.write_fmt(format_args!(".get_f({})", indices[0]))?;
+                    collector.write_fmt(format_args!("[{}]", indices[0]))?;
                 }
             } else {
                 collector.write_all(b"swizzle!(")?;
@@ -101,7 +101,7 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
                 emit_expression(collector, &inner_expression)?;
                 collector.write_fmt(format_args!(".g{}", array_index))?;
                 if inner_expression.size > 1 {
-                    collector.write_fmt(format_args!(".get_f({})", *component_index))?;
+                    collector.write_fmt(format_args!("[{}]", *component_index))?;
                 }
             }
             if indices.len() > 1 {
@@ -165,15 +165,35 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
     Ok(())
 }
 
+fn emit_assign_trait<W: std::io::Write>(collector: &mut W, result: &Parameter, parameters: &[Parameter]) -> std::io::Result<()> {
+    if result.multi_vector_class() != parameters[0].multi_vector_class() {
+        return Ok(());
+    }
+    collector.write_fmt(format_args!(
+        "impl {}Assign<{}> for {} {{\n    fn ",
+        result.name,
+        parameters[1].multi_vector_class().class_name,
+        parameters[0].multi_vector_class().class_name
+    ))?;
+    camel_to_snake_case(collector, result.name)?;
+    collector.write_fmt(format_args!(
+        "_assign(&mut self, other: {}) {{\n        *self = (*self).",
+        parameters[1].multi_vector_class().class_name
+    ))?;
+    camel_to_snake_case(collector, result.name)?;
+    collector.write_all(b"(other);\n    }\n}\n\n")
+}
+
 pub fn emit_code<W: std::io::Write>(collector: &mut W, ast_node: &AstNode, indentation: usize) -> std::io::Result<()> {
     match &ast_node {
         AstNode::None => {}
         AstNode::Preamble => {
             collector.write_all(b"#![allow(clippy::assign_op_pattern)]\n")?;
-            collector.write_all(b"use crate::{*, simd::*};\nuse std::ops::{Add, Neg, Sub, Mul, Div};\n\n")?;
+            collector
+                .write_all(b"use crate::{simd::*, *};\nuse std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};\n\n")?;
         }
         AstNode::ClassDefinition { class } => {
-            collector.write_fmt(format_args!("#[derive(Clone, Copy)]\npub struct {} {{\n", class.class_name))?;
+            collector.write_fmt(format_args!("#[derive(Clone, Copy, Debug)]\npub struct {} {{\n", class.class_name))?;
             for (i, group) in class.grouped_basis.iter().enumerate() {
                 emit_indentation(collector, indentation + 1)?;
                 collector.write_all(b"/// ")?;
@@ -283,6 +303,12 @@ pub fn emit_code<W: std::io::Write>(collector: &mut W, ast_node: &AstNode, inden
             }
             emit_indentation(collector, indentation + 1)?;
             collector.write_all(b"}\n}\n\n")?;
+            match result.name {
+                "Add" | "Sub" | "Mul" | "Div" => {
+                    emit_assign_trait(collector, result, &parameters)?;
+                }
+                _ => {}
+            }
         }
     }
     Ok(())
