@@ -8,7 +8,14 @@ impl<'a> GeometricAlgebra<'a> {
     }
 
     pub fn basis(&self) -> impl Iterator<Item = BasisElement> + '_ {
-        (0..self.basis_size() as BasisElementIndex).map(|index| BasisElement { index })
+        (0..self.basis_size() as BasisElementIndex).map(move |index| {
+            let mut element = BasisElement::from_index(index);
+            let dual = element.dual(self);
+            if dual.cmp(&element) == std::cmp::Ordering::Less {
+                element.scalar = element.dual(self).scalar;
+            }
+            element
+        })
     }
 
     pub fn sorted_basis(&self) -> Vec<BasisElement> {
@@ -18,24 +25,35 @@ impl<'a> GeometricAlgebra<'a> {
     }
 }
 
-type BasisElementIndex = u16;
+pub type BasisElementIndex = u16;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct BasisElement {
+    pub scalar: isize,
     pub index: BasisElementIndex,
 }
 
 impl BasisElement {
-    pub fn new(name: &str) -> Self {
-        Self {
-            index: if name == "1" {
-                0
-            } else {
-                let mut generator_indices = name.chars();
-                assert_eq!(generator_indices.next().unwrap(), 'e');
-                generator_indices.fold(0, |index, generator_index| index | (1 << (generator_index.to_digit(16).unwrap())))
-            },
+    pub fn from_index(index: BasisElementIndex) -> Self {
+        Self { scalar: 1, index }
+    }
+
+    pub fn parse(mut name: &str, algebra: &GeometricAlgebra) -> Self {
+        let mut result = Self::from_index(0);
+        if name.starts_with('-') {
+            name = &name[1..];
+            result.scalar = -1;
         }
+        if name == "1" {
+            return result;
+        }
+        let mut generator_indices = name.chars();
+        assert_eq!(generator_indices.next().unwrap(), 'e');
+        for generator_index in generator_indices {
+            let generator = Self::from_index(1 << (generator_index.to_digit(16).unwrap()));
+            result = BasisElement::product(&result, &generator, algebra);
+        }
+        result
     }
 
     pub fn grade(&self) -> usize {
@@ -47,8 +65,30 @@ impl BasisElement {
     }
 
     pub fn dual(&self, algebra: &GeometricAlgebra) -> Self {
-        Self {
+        let mut result = Self {
+            scalar: self.scalar,
             index: algebra.basis_size() as BasisElementIndex - 1 - self.index,
+        };
+        result.scalar *= BasisElement::product(&self, &result, &algebra).scalar;
+        result
+    }
+
+    pub fn product(a: &Self, b: &Self, algebra: &GeometricAlgebra) -> Self {
+        let commutations = a.component_bits().fold((0, a.index, b.index), |(commutations, a, b), index| {
+            let hurdles_a = a & (BasisElementIndex::MAX << (index + 1));
+            let hurdles_b = b & ((1 << index) - 1);
+            (
+                commutations + Self::from_index(hurdles_a | hurdles_b).grade(),
+                a & !(1 << index),
+                b ^ (1 << index),
+            )
+        });
+        Self {
+            scalar: Self::from_index(a.index & b.index)
+                .component_bits()
+                .map(|i| algebra.generator_squares[i])
+                .fold(a.scalar * b.scalar * if commutations.0 % 2 == 0 { 1 } else { -1 }, |a, b| a * b),
+            index: a.index ^ b.index,
         }
     }
 }
@@ -56,10 +96,10 @@ impl BasisElement {
 impl std::fmt::Display for BasisElement {
     fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         if self.index == 0 {
-            formatter.pad("1")
+            formatter.pad_integral(self.scalar >= 0, "", "1")
         } else {
             let string = format!("e{}", self.component_bits().map(|index| format!("{:X}", index)).collect::<String>());
-            formatter.pad(string.as_str())
+            formatter.pad_integral(self.scalar >= 0, "", string.as_str())
         }
     }
 }
@@ -86,67 +126,21 @@ impl std::cmp::PartialOrd for BasisElement {
     }
 }
 
-#[derive(Clone, PartialEq)]
-pub struct ScaledElement {
-    pub scalar: isize,
-    pub unit: BasisElement,
-}
-
-impl ScaledElement {
-    pub fn from(element: &BasisElement) -> Self {
-        Self {
-            scalar: 1,
-            unit: element.clone(),
-        }
-    }
-
-    pub fn product(a: &Self, b: &Self, algebra: &GeometricAlgebra) -> Self {
-        let commutations = a
-            .unit
-            .component_bits()
-            .fold((0, a.unit.index, b.unit.index), |(commutations, a, b), index| {
-                let hurdles_a = a & (BasisElementIndex::MAX << (index + 1));
-                let hurdles_b = b & ((1 << index) - 1);
-                (
-                    commutations
-                        + BasisElement {
-                            index: hurdles_a | hurdles_b,
-                        }
-                        .grade(),
-                    a & !(1 << index),
-                    b ^ (1 << index),
-                )
-            });
-        Self {
-            scalar: BasisElement {
-                index: a.unit.index & b.unit.index,
-            }
-            .component_bits()
-            .map(|i| algebra.generator_squares[i])
-            .fold(a.scalar * b.scalar * if commutations.0 % 2 == 0 { 1 } else { -1 }, |a, b| a * b),
-            unit: BasisElement {
-                index: a.unit.index ^ b.unit.index,
-            },
-        }
-    }
-}
-
-impl std::fmt::Display for ScaledElement {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let string = self.unit.to_string();
-        formatter.pad_integral(self.scalar >= 0, "", if self.scalar == 0 { "0" } else { string.as_str() })
-    }
-}
-
 #[derive(Clone)]
 pub struct Involution {
-    pub terms: Vec<ScaledElement>,
+    pub terms: Vec<(BasisElement, BasisElement)>,
 }
 
 impl Involution {
     pub fn identity(algebra: &GeometricAlgebra) -> Self {
         Self {
-            terms: algebra.basis().map(|element| ScaledElement { scalar: 1, unit: element }).collect(),
+            terms: algebra.basis().map(|element| (element.clone(), element)).collect(),
+        }
+    }
+
+    pub fn projection(class: &MultiVectorClass) -> Self {
+        Self {
+            terms: class.flat_basis().iter().map(|element| (element.clone(), element.clone())).collect(),
         }
     }
 
@@ -158,9 +152,10 @@ impl Involution {
             terms: self
                 .terms
                 .iter()
-                .map(|element| ScaledElement {
-                    scalar: if grade_negation(element.unit.grade()) { -1 } else { 1 },
-                    unit: element.unit.clone(),
+                .map(|(key, value)| {
+                    let mut element = value.clone();
+                    element.scalar *= if grade_negation(value.grade()) { -1 } else { 1 };
+                    (key.clone(), element)
                 })
                 .collect(),
         }
@@ -168,14 +163,7 @@ impl Involution {
 
     pub fn dual(&self, algebra: &GeometricAlgebra) -> Self {
         Self {
-            terms: self
-                .terms
-                .iter()
-                .map(|term| ScaledElement {
-                    scalar: term.scalar,
-                    unit: term.unit.dual(algebra),
-                })
-                .collect(),
+            terms: self.terms.iter().map(|(key, value)| (key.clone(), value.dual(algebra))).collect(),
         }
     }
 
@@ -193,7 +181,7 @@ impl Involution {
 
 #[derive(Clone, PartialEq)]
 pub struct ProductTerm {
-    pub product: ScaledElement,
+    pub product: BasisElement,
     pub factor_a: BasisElement,
     pub factor_b: BasisElement,
 }
@@ -204,15 +192,15 @@ pub struct Product {
 }
 
 impl Product {
-    pub fn product(a: &[ScaledElement], b: &[ScaledElement], algebra: &GeometricAlgebra) -> Self {
+    pub fn product(a: &[BasisElement], b: &[BasisElement], algebra: &GeometricAlgebra) -> Self {
         Self {
             terms: a
                 .iter()
                 .map(|a| {
                     b.iter().map(move |b| ProductTerm {
-                        product: ScaledElement::product(&a, &b, algebra),
-                        factor_a: a.unit.clone(),
-                        factor_b: b.unit.clone(),
+                        product: BasisElement::product(&a, &b, algebra),
+                        factor_a: a.clone(),
+                        factor_b: b.clone(),
                     })
                 })
                 .flatten()
@@ -229,7 +217,7 @@ impl Product {
             terms: self
                 .terms
                 .iter()
-                .filter(|term| grade_projection(term.factor_a.grade(), term.factor_b.grade(), term.product.unit.grade()))
+                .filter(|term| grade_projection(term.factor_a.grade(), term.factor_b.grade(), term.product.grade()))
                 .cloned()
                 .collect(),
         }
@@ -241,10 +229,7 @@ impl Product {
                 .terms
                 .iter()
                 .map(|term| ProductTerm {
-                    product: ScaledElement {
-                        scalar: term.product.scalar,
-                        unit: term.product.unit.dual(algebra),
-                    },
+                    product: term.product.dual(algebra),
                     factor_a: term.factor_a.dual(algebra),
                     factor_b: term.factor_b.dual(algebra),
                 })
@@ -253,7 +238,7 @@ impl Product {
     }
 
     pub fn products(algebra: &GeometricAlgebra) -> Vec<(&'static str, Self)> {
-        let basis = algebra.basis().map(|element| ScaledElement::from(&element)).collect::<Vec<_>>();
+        let basis = algebra.basis().collect::<Vec<_>>();
         let product = Self::product(&basis, &basis, algebra);
         vec![
             ("GeometricProduct", product.clone()),
@@ -270,7 +255,7 @@ impl Product {
 #[derive(Default)]
 pub struct MultiVectorClassRegistry {
     pub classes: Vec<MultiVectorClass>,
-    index_by_signature: std::collections::HashMap<Vec<BasisElement>, usize>,
+    index_by_signature: std::collections::HashMap<Vec<BasisElementIndex>, usize>,
 }
 
 impl MultiVectorClassRegistry {
@@ -279,7 +264,7 @@ impl MultiVectorClassRegistry {
         self.classes.push(class);
     }
 
-    pub fn get(&self, signature: &[BasisElement]) -> Option<&MultiVectorClass> {
+    pub fn get(&self, signature: &[BasisElementIndex]) -> Option<&MultiVectorClass> {
         self.index_by_signature.get(signature).map(|index| &self.classes[*index])
     }
 }

@@ -6,7 +6,7 @@ mod glsl;
 mod rust;
 
 use crate::{
-    algebra::{BasisElement, GeometricAlgebra, Involution, MultiVectorClass, MultiVectorClassRegistry, Product, ScaledElement},
+    algebra::{BasisElement, GeometricAlgebra, Involution, MultiVectorClass, MultiVectorClassRegistry, Product},
     ast::{AstNode, DataType, Parameter},
     emit::Emitter,
 };
@@ -31,13 +31,9 @@ fn main() {
     let involutions = Involution::involutions(&algebra);
     let products = Product::products(&algebra);
     let basis = algebra.sorted_basis();
-    for a in basis.iter() {
-        for b in basis.iter() {
-            print!(
-                "{:1$} ",
-                ScaledElement::product(&ScaledElement::from(&a), &ScaledElement::from(&b), &algebra),
-                generator_squares.len() + 2
-            );
+    for b in basis.iter() {
+        for a in basis.iter() {
+            print!("{:1$} ", BasisElement::product(&a, &b, &algebra), generator_squares.len() + 2);
         }
         println!();
     }
@@ -53,7 +49,7 @@ fn main() {
                 .map(|group_descriptor| {
                     group_descriptor
                         .split(',')
-                        .map(|element_name| BasisElement::new(element_name))
+                        .map(|element_name| BasisElement::parse(element_name, &algebra))
                         .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>(),
@@ -80,7 +76,7 @@ fn main() {
             }
         }
         for (name, involution) in involutions.iter() {
-            let ast_node = MultiVectorClass::involution(name, &involution, &parameter_a, &registry);
+            let ast_node = MultiVectorClass::involution(name, &involution, &parameter_a, &registry, false);
             emitter.emit(&ast_node).unwrap();
             if ast_node != AstNode::None {
                 single_trait_implementations.insert(name.to_string(), ast_node);
@@ -93,11 +89,13 @@ fn main() {
                 name: "other",
                 data_type: DataType::MultiVector(class_b),
             };
-            let name = "Into";
-            let ast_node = MultiVectorClass::conversion(name, &parameter_a, &parameter_b.multi_vector_class());
-            emitter.emit(&ast_node).unwrap();
-            if ast_node != AstNode::None {
-                trait_implementations.insert(name.to_string(), ast_node);
+            if class_a != class_b {
+                let name = "Into";
+                let ast_node = MultiVectorClass::involution(name, &Involution::projection(&class_b), &parameter_a, &registry, true);
+                emitter.emit(&ast_node).unwrap();
+                if ast_node != AstNode::None {
+                    trait_implementations.insert(name.to_string(), ast_node);
+                }
             }
             for name in &["Add", "Sub"] {
                 let ast_node = MultiVectorClass::sum(*name, &parameter_a, &parameter_b, &registry);
@@ -135,7 +133,7 @@ fn main() {
         }
         for (parameter_b, pair_trait_implementations) in pair_trait_implementations.values() {
             if let Some(geometric_product) = pair_trait_implementations.get("GeometricProduct") {
-                if parameter_b.multi_vector_class().grouped_basis == vec![vec![BasisElement { index: 0 }]] {
+                if parameter_b.multi_vector_class().grouped_basis == vec![vec![BasisElement::from_index(0)]] {
                     if let Some(magnitude) = single_trait_implementations.get("Magnitude") {
                         let signum = MultiVectorClass::derive_signum("Signum", &geometric_product, &magnitude, &parameter_a);
                         emitter.emit(&signum).unwrap();

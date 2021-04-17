@@ -1,5 +1,5 @@
 use crate::{
-    algebra::{BasisElement, Involution, MultiVectorClass, MultiVectorClassRegistry, Product},
+    algebra::{BasisElement, BasisElementIndex, Involution, MultiVectorClass, MultiVectorClassRegistry, Product},
     ast::{AstNode, DataType, Expression, ExpressionContent, Parameter},
 };
 
@@ -146,9 +146,9 @@ impl MultiVectorClass {
         self.grouped_basis.iter().flatten().cloned().collect()
     }
 
-    pub fn signature(&self) -> Vec<BasisElement> {
-        let mut signature = self.flat_basis();
-        signature.sort();
+    pub fn signature(&self) -> Vec<BasisElementIndex> {
+        let mut signature: Vec<BasisElementIndex> = self.grouped_basis.iter().flatten().map(|element| element.index).collect();
+        signature.sort_unstable();
         signature
     }
 
@@ -204,29 +204,48 @@ impl MultiVectorClass {
         involution: &Involution,
         parameter_a: &Parameter<'a>,
         registry: &'a MultiVectorClassRegistry,
+        project: bool,
     ) -> AstNode<'a> {
         let a_flat_basis = parameter_a.multi_vector_class().flat_basis();
-        let result_signature = a_flat_basis
-            .iter()
-            .map(|element| involution.terms[element.index as usize].unit.clone())
-            .collect::<std::collections::HashSet<_>>();
-        let mut result_signature = result_signature.into_iter().collect::<Vec<_>>();
-        result_signature.sort();
+        let mut result_signature = Vec::new();
+        for a_element in a_flat_basis.iter() {
+            for (in_element, out_element) in involution.terms.iter() {
+                if in_element.index == a_element.index {
+                    result_signature.push(out_element.index);
+                    break;
+                }
+            }
+        }
+        if project {
+            for (in_element, _out_element) in involution.terms.iter() {
+                if !a_flat_basis.iter().any(|element| element.index == in_element.index) {
+                    return AstNode::None;
+                }
+            }
+        }
+        result_signature.sort_unstable();
         if let Some(result_class) = registry.get(&result_signature) {
             let result_flat_basis = result_class.flat_basis();
             let mut body = Vec::new();
             let mut base_index = 0;
             for result_group in result_class.grouped_basis.iter() {
                 let size = result_group.len();
-                let a_indices = (0..size)
+                let (factors, a_indices): (Vec<_>, Vec<_>) = (0..size)
                     .map(|index_in_group| {
                         let result_element = &result_flat_basis[base_index + index_in_group];
-                        let a_element = &involution.terms[result_element.index as usize].unit;
-                        parameter_a
-                            .multi_vector_class()
-                            .index_in_group(a_flat_basis.iter().position(|element| element == a_element).unwrap())
+                        let involution_element = involution
+                            .terms
+                            .iter()
+                            .position(|(_in_element, out_element)| out_element.index == result_element.index)
+                            .unwrap();
+                        let (in_element, out_element) = &involution.terms[involution_element];
+                        let index_in_a = a_flat_basis.iter().position(|a_element| a_element.index == in_element.index).unwrap();
+                        (
+                            out_element.scalar * result_element.scalar * in_element.scalar * a_flat_basis[index_in_a].scalar,
+                            parameter_a.multi_vector_class().index_in_group(index_in_a),
+                        )
                     })
-                    .collect::<Vec<_>>();
+                    .unzip();
                 let a_group_index = a_indices[0].0;
                 let expression = Expression {
                     size,
@@ -243,13 +262,7 @@ impl MultiVectorClass {
                         }),
                         Box::new(Expression {
                             size,
-                            content: ExpressionContent::Constant(
-                                DataType::SimdVector(size),
-                                result_group
-                                    .iter()
-                                    .map(|element| involution.terms[element.index as usize].scalar)
-                                    .collect(),
-                            ),
+                            content: ExpressionContent::Constant(DataType::SimdVector(size), factors),
                         }),
                     ),
                 };
@@ -274,58 +287,6 @@ impl MultiVectorClass {
         }
     }
 
-    pub fn conversion<'a>(name: &'static str, parameter_a: &Parameter<'a>, result_class: &'a MultiVectorClass) -> AstNode<'a> {
-        if parameter_a.multi_vector_class() == result_class {
-            return AstNode::None;
-        }
-        let a_flat_basis = parameter_a.multi_vector_class().flat_basis();
-        let result_flat_basis = result_class.flat_basis();
-        for element in &result_flat_basis {
-            if !a_flat_basis.contains(element) {
-                return AstNode::None;
-            }
-        }
-        let mut body = Vec::new();
-        let mut base_index = 0;
-        for result_group in result_class.grouped_basis.iter() {
-            let size = result_group.len();
-            let a_indices = (0..size)
-                .map(|index_in_group| {
-                    let result_element = &result_flat_basis[base_index + index_in_group];
-                    parameter_a
-                        .multi_vector_class()
-                        .index_in_group(a_flat_basis.iter().position(|a_element| a_element == result_element).unwrap())
-                })
-                .collect::<Vec<_>>();
-            let a_group_index = a_indices[0].0;
-            let expression = Expression {
-                size,
-                content: ExpressionContent::Gather(
-                    Box::new(Expression {
-                        size: parameter_a.multi_vector_class().grouped_basis[a_group_index].len(),
-                        content: ExpressionContent::Variable(parameter_a.name),
-                    }),
-                    a_indices,
-                ),
-            };
-            body.push((DataType::SimdVector(size), *simplify_and_legalize(Box::new(expression))));
-            base_index += size;
-        }
-        AstNode::TraitImplementation {
-            result: Parameter {
-                name,
-                data_type: DataType::MultiVector(result_class),
-            },
-            parameters: vec![parameter_a.clone()],
-            body: vec![AstNode::ReturnStatement {
-                expression: Box::new(Expression {
-                    size: 1,
-                    content: ExpressionContent::InvokeClassMethod(result_class, "Constructor", body),
-                }),
-            }],
-        }
-    }
-
     pub fn sum<'a>(
         name: &'static str,
         parameter_a: &Parameter<'a>,
@@ -339,8 +300,8 @@ impl MultiVectorClass {
             .chain(b_flat_basis.iter())
             .cloned()
             .collect::<std::collections::HashSet<_>>();
-        let mut result_signature = result_signature.into_iter().collect::<Vec<_>>();
-        result_signature.sort();
+        let mut result_signature = result_signature.into_iter().map(|element| element.index).collect::<Vec<_>>();
+        result_signature.sort_unstable();
         if let Some(result_class) = registry.get(&result_signature) {
             let parameters = [(parameter_a, &a_flat_basis), (parameter_b, &b_flat_basis)];
             let mut body = Vec::new();
@@ -351,10 +312,10 @@ impl MultiVectorClass {
                     let terms: Vec<_> = result_group
                         .iter()
                         .map(|result_element| {
-                            if let Some(index_in_group) = flat_basis.iter().position(|element| element == result_element) {
-                                let index_pair = parameter.multi_vector_class().index_in_group(index_in_group);
+                            if let Some(index_in_flat_basis) = flat_basis.iter().position(|element| element.index == result_element.index) {
+                                let index_pair = parameter.multi_vector_class().index_in_group(index_in_flat_basis);
                                 parameter_group_index = Some(index_pair.0);
-                                (1, index_pair)
+                                (result_element.scalar * flat_basis[index_in_flat_basis].scalar, index_pair)
                             } else {
                                 (0, (0, 0))
                             }
@@ -428,20 +389,30 @@ impl MultiVectorClass {
         let b_flat_basis = parameter_b.multi_vector_class().flat_basis();
         let mut result_signature = std::collections::HashSet::new();
         for product_term in product.terms.iter() {
-            if a_flat_basis.contains(&product_term.factor_a) && b_flat_basis.contains(&product_term.factor_b) {
-                result_signature.insert(product_term.product.unit.clone());
+            if a_flat_basis.iter().any(|e| e.index == product_term.factor_a.index)
+                && b_flat_basis.iter().any(|e| e.index == product_term.factor_b.index)
+            {
+                result_signature.insert(product_term.product.index);
             }
         }
         let mut result_signature = result_signature.into_iter().collect::<Vec<_>>();
-        result_signature.sort();
+        result_signature.sort_unstable();
         if let Some(result_class) = registry.get(&result_signature) {
             let result_flat_basis = result_class.flat_basis();
             let mut sorted_terms = vec![vec![(0, 0); a_flat_basis.len()]; result_flat_basis.len()];
             for product_term in product.terms.iter() {
-                if let Some(y) = result_flat_basis.iter().position(|e| e == &product_term.product.unit) {
-                    if let Some(x) = a_flat_basis.iter().position(|e| e == &product_term.factor_a) {
-                        if let Some(gather_index) = b_flat_basis.iter().position(|e| e == &product_term.factor_b) {
-                            sorted_terms[y][x] = (product_term.product.scalar, gather_index);
+                if let Some(y) = result_flat_basis.iter().position(|e| e.index == product_term.product.index) {
+                    if let Some(x) = a_flat_basis.iter().position(|e| e.index == product_term.factor_a.index) {
+                        if let Some(gather_index) = b_flat_basis.iter().position(|e| e.index == product_term.factor_b.index) {
+                            sorted_terms[y][x] = (
+                                result_flat_basis[y].scalar
+                                    * product_term.product.scalar
+                                    * a_flat_basis[x].scalar
+                                    * product_term.factor_a.scalar
+                                    * b_flat_basis[gather_index].scalar
+                                    * product_term.factor_b.scalar,
+                                gather_index,
+                            );
                         }
                     }
                 }
@@ -469,7 +440,7 @@ impl MultiVectorClass {
                     },
                     vec![(0, 0); expression.size],
                     vec![(0, 0); expression.size],
-                    vec![false; expression.size],
+                    vec![0; expression.size],
                 );
                 for (index_in_a, a_terms) in transposed_terms.enumerate() {
                     if a_terms.iter().all(|(factor, _)| *factor == 0) {
@@ -488,10 +459,7 @@ impl MultiVectorClass {
                         .enumerate()
                         .map(|(index, (factor, _index_pair))| b_indices[if *factor == 0 { non_zero_index } else { index }])
                         .collect::<Vec<_>>();
-                    let is_contractable = a_terms
-                        .iter()
-                        .enumerate()
-                        .all(|(i, (factor, _))| *factor == 0 || *factor == 1 && !contraction.4[i])
+                    let is_contractable = a_terms.iter().enumerate().all(|(i, (factor, _))| *factor == 0 || contraction.4[i] == 0)
                         && (contraction.0.content == ExpressionContent::None
                             || contraction.0.size == parameter_a.multi_vector_class().grouped_basis[a_group_index].len())
                         && (contraction.1.content == ExpressionContent::None
@@ -511,10 +479,10 @@ impl MultiVectorClass {
                             contraction.3 = b_indices.iter().map(|(b_group_index, _)| (*b_group_index, 0)).collect();
                         }
                         for (i, (factor, _index_in_b)) in a_terms.iter().enumerate() {
-                            if *factor == 1 {
+                            if *factor != 0 {
                                 contraction.2[i] = a_indices[i];
                                 contraction.3[i] = b_indices[i];
-                                contraction.4[i] = true;
+                                contraction.4[i] = *factor;
                             }
                         }
                     } else {
@@ -563,7 +531,7 @@ impl MultiVectorClass {
                         };
                     }
                 }
-                if contraction.4.iter().any(|mask| *mask) {
+                if contraction.4.iter().any(|scalar| *scalar != 0) {
                     expression = Expression {
                         size,
                         content: ExpressionContent::Add(
@@ -586,10 +554,7 @@ impl MultiVectorClass {
                                     }),
                                     Box::new(Expression {
                                         size,
-                                        content: ExpressionContent::Constant(
-                                            DataType::SimdVector(size),
-                                            contraction.4.iter().map(|value| *value as isize).collect(),
-                                        ),
+                                        content: ExpressionContent::Constant(DataType::SimdVector(size), contraction.4),
                                     }),
                                 ),
                             }),
