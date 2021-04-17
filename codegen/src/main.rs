@@ -65,13 +65,13 @@ fn main() {
         emitter.emit(&AstNode::ClassDefinition { class }).unwrap();
     }
     let involution_name = if generator_squares == vec![-1] { "Conjugate" } else { "Transpose" };
-    let mut trait_implementations = std::collections::HashMap::new();
+    let mut trait_implementations = std::collections::BTreeMap::new();
     for class_a in registry.classes.iter() {
         let parameter_a = Parameter {
             name: "self",
             data_type: DataType::MultiVector(class_a),
         };
-        let mut single_trait_implementations = std::collections::HashMap::new();
+        let mut single_trait_implementations = std::collections::BTreeMap::new();
         for name in &["Zero", "One"] {
             let ast_node = class_a.constant(name);
             emitter.emit(&ast_node).unwrap();
@@ -86,9 +86,9 @@ fn main() {
                 single_trait_implementations.insert(name.to_string(), ast_node);
             }
         }
-        let mut pair_trait_implementations = std::collections::HashMap::new();
+        let mut pair_trait_implementations = std::collections::BTreeMap::new();
         for class_b in registry.classes.iter() {
-            let mut trait_implementations = std::collections::HashMap::new();
+            let mut trait_implementations = std::collections::BTreeMap::new();
             let parameter_b = Parameter {
                 name: "other",
                 data_type: DataType::MultiVector(class_b),
