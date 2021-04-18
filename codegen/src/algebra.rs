@@ -96,7 +96,7 @@ impl BasisElement {
 impl std::fmt::Display for BasisElement {
     fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         if self.index == 0 {
-            formatter.pad_integral(self.scalar >= 0, "", "1")
+            formatter.pad_integral(self.scalar >= 0, "", &self.scalar.abs().to_string())
         } else {
             let string = format!("e{}", self.component_bits().map(|index| format!("{:X}", index)).collect::<String>());
             formatter.pad_integral(self.scalar >= 0, "", string.as_str())
