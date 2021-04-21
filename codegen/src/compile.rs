@@ -1179,19 +1179,15 @@ impl MultiVectorClass {
                     DataType::MultiVector(involution_result.multi_vector_class()),
                     Expression {
                         size: 1,
-                        content: match name {
-                            "Reflection" => ExpressionContent::Variable(parameter_a.name),
-                            "Transformation" => ExpressionContent::InvokeInstanceMethod(
-                                parameter_a.data_type.clone(),
-                                Box::new(Expression {
-                                    size: 1,
-                                    content: ExpressionContent::Variable(parameter_a.name),
-                                }),
-                                involution_result.name,
-                                vec![],
-                            ),
-                            _ => unreachable!(),
-                        },
+                        content: ExpressionContent::InvokeInstanceMethod(
+                            parameter_a.data_type.clone(),
+                            Box::new(Expression {
+                                size: 1,
+                                content: ExpressionContent::Variable(parameter_a.name),
+                            }),
+                            involution_result.name,
+                            vec![],
+                        ),
                     },
                 )],
             ),

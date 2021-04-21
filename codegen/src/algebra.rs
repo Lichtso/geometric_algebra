@@ -50,8 +50,9 @@ impl BasisElement {
         let mut generator_indices = name.chars();
         assert_eq!(generator_indices.next().unwrap(), 'e');
         for generator_index in generator_indices {
-            let generator = Self::from_index(1 << (generator_index.to_digit(16).unwrap()));
-            result = BasisElement::product(&result, &generator, algebra);
+            let generator_index = generator_index.to_digit(16).unwrap();
+            assert!((generator_index as usize) < algebra.generator_squares.len());
+            result = BasisElement::product(&result, &Self::from_index(1 << generator_index), algebra);
         }
         result
     }
@@ -95,12 +96,18 @@ impl BasisElement {
 
 impl std::fmt::Display for BasisElement {
     fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if self.index == 0 {
-            formatter.pad_integral(self.scalar >= 0, "", &self.scalar.abs().to_string())
-        } else {
-            let string = format!("e{}", self.component_bits().map(|index| format!("{:X}", index)).collect::<String>());
-            formatter.pad_integral(self.scalar >= 0, "", string.as_str())
-        }
+        let name = format!("e{}", self.component_bits().map(|index| format!("{:X}", index)).collect::<String>());
+        formatter.pad_integral(
+            self.scalar >= 0,
+            "",
+            if self.scalar == 0 {
+                "0"
+            } else if self.index == 0 {
+                "1"
+            } else {
+                name.as_str()
+            },
+        )
     }
 }
 
@@ -171,9 +178,9 @@ impl Involution {
         let involution = Self::identity(algebra);
         vec![
             ("Neg", involution.negated(|_grade| true)),
-            ("Automorph", involution.negated(|grade| grade % 2 == 1)),
-            ("Transpose", involution.negated(|grade| grade % 4 >= 2)),
-            ("Conjugate", involution.negated(|grade| (grade + 3) % 4 < 2)),
+            ("Automorphism", involution.negated(|grade| grade % 2 == 1)),
+            ("Reversal", involution.negated(|grade| grade % 4 >= 2)),
+            ("Conjugation", involution.negated(|grade| (grade + 3) % 4 < 2)),
             ("Dual", involution.dual(algebra)),
         ]
     }

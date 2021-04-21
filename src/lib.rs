@@ -1,12 +1,18 @@
 #![cfg_attr(all(target_arch = "wasm32", target_feature = "simd128"), feature(wasm_simd))]
 #![cfg_attr(all(any(target_arch = "arm", target_arch = "aarch64"), target_feature = "neon"), feature(stdsimd))]
 
-pub mod complex;
+pub mod epga1d;
+pub mod ppga1d;
+pub mod hpga1d;
+pub mod epga2d;
 pub mod ppga2d;
+pub mod hpga2d;
+pub mod epga3d;
 pub mod ppga3d;
+pub mod hpga3d;
 pub mod simd;
 
-impl complex::Scalar {
+impl epga1d::Scalar {
     pub const fn new(real: f32) -> Self {
         Self { g0: real }
     }
@@ -15,16 +21,16 @@ impl complex::Scalar {
         self.g0
     }
 
-    pub fn sqrt(self) -> complex::MultiVector {
+    pub fn sqrt(self) -> epga1d::ComplexNumber {
         if self.g0 < 0.0 {
-            complex::MultiVector::new(0.0, (-self.g0).sqrt())
+            epga1d::ComplexNumber::new(0.0, (-self.g0).sqrt())
         } else {
-            complex::MultiVector::new(self.g0.sqrt(), 0.0)
+            epga1d::ComplexNumber::new(self.g0.sqrt(), 0.0)
         }
     }
 }
 
-impl complex::MultiVector {
+impl epga1d::ComplexNumber {
     pub const fn new(real: f32, imaginary: f32) -> Self {
         Self {
             g0: simd::Simd32x2 {
@@ -73,23 +79,23 @@ pub trait Dual {
 /// Negates elements with `grade % 2 == 1`
 ///
 /// Also called main involution
-pub trait Automorph {
+pub trait Automorphism {
     type Output;
-    fn automorph(self) -> Self::Output;
+    fn automorphism(self) -> Self::Output;
 }
 
 /// Negates elements with `grade % 4 >= 2`
 ///
-/// Also called reversion
-pub trait Transpose {
+/// Also called transpose
+pub trait Reversal {
     type Output;
-    fn transpose(self) -> Self::Output;
+    fn reversal(self) -> Self::Output;
 }
 
 /// Negates elements with `(grade + 3) % 4 < 2`
-pub trait Conjugate {
+pub trait Conjugation {
     type Output;
-    fn conjugate(self) -> Self::Output;
+    fn conjugation(self) -> Self::Output;
 }
 
 /// General multi vector multiplication
@@ -140,15 +146,7 @@ pub trait ScalarProduct<T> {
     fn scalar_product(self, other: T) -> Self::Output;
 }
 
-/// `self * other * self`
-///
-/// Basically a sandwich product without an involution
-pub trait Reflection<T> {
-    type Output;
-    fn reflection(self, other: T) -> Self::Output;
-}
-
-/// `self * other * self.transpose()`
+/// `self * other * self.reversion()`
 ///
 /// Also called sandwich product
 pub trait Transformation<T> {
@@ -170,7 +168,7 @@ pub trait Magnitude {
     fn magnitude(self) -> Self::Output;
 }
 
-/// Direction without magnitude (set to scalar `1.0`)
+/// Direction without magnitude (set to scalar `-1.0` or `1.0`)
 ///
 /// Also called sign or normalize
 pub trait Signum {
