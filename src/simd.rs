@@ -104,7 +104,7 @@ macro_rules! swizzle {
                 $self.f32x4[$z],
                 $self.f32x4[$w],
             ] },
-            { v128: $crate::simd::v32x4_shuffle::<$x, $y, $z, $w>($self.v128, $self.v128) },
+            { v128: $crate::simd::i32x4_shuffle::<$x, $y, $z, $w>($self.v128, $self.v128) },
             { f32x4: [
                 $self.f32x4[$x],
                 $self.f32x4[$y],
