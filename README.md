@@ -14,3 +14,8 @@ This repository allows you to describe [geometric algebras](https://en.wikipedia
 - Emitter: Serializes the AST to source code
     - [Rust](https://www.rust-lang.org/)
     - [GLSL](https://www.khronos.org/opengl/wiki/Core_Language_(GLSL))
+
+## Supported SIMD ISAs
+- x86, x86_64: sse2
+- arm, aarch64: neon
+- wasm32: simd128
