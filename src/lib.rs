@@ -1,4 +1,3 @@
-#![cfg_attr(all(target_arch = "wasm32", target_feature = "simd128"), feature(wasm_simd))]
 #![cfg_attr(all(any(target_arch = "arm", target_arch = "aarch64"), target_feature = "neon"), feature(stdsimd))]
 
 pub mod epga1d;
