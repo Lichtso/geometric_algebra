@@ -1,14 +1,14 @@
 use std::ops::{Index, IndexMut};
 
-#[cfg(target_arch = "aarch64")]
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 pub use std::arch::aarch64::*;
-#[cfg(target_arch = "arm")]
+#[cfg(all(target_arch = "arm", target_feature = "neon"))]
 pub use std::arch::arm::*;
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 pub use std::arch::wasm32::*;
-#[cfg(target_arch = "x86")]
+#[cfg(all(target_arch = "x86", target_feature = "sse2"))]
 pub use std::arch::x86::*;
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(target_arch = "x86_64", target_feature = "sse2"))]
 pub use std::arch::x86_64::*;
 
 #[derive(Clone, Copy)]
@@ -63,9 +63,17 @@ pub union Simd32x2 {
 #[macro_export]
 macro_rules! match_architecture {
     ($Simd:ident, $native:tt, $fallback:tt,) => {{
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "arm", target_arch = "aarch64", target_arch = "wasm32"))]
+        #[cfg(any(
+            all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "sse2"),
+            all(any(target_arch = "arm", target_arch = "aarch64"), target_feature = "neon"),
+            all(target_arch = "wasm32", target_feature = "simd128"),
+        ))]
         { $Simd $native }
-        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64", target_arch = "arm", target_arch = "aarch64", target_arch = "wasm32")))]
+        #[cfg(not(any(
+            all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "sse2"),
+            all(any(target_arch = "arm", target_arch = "aarch64"), target_feature = "neon"),
+            all(target_arch = "wasm32", target_feature = "simd128"),
+        )))]
         unsafe { $Simd $fallback }
     }};
     ($Simd:ident, $x86:tt, $arm:tt, $web:tt, $fallback:tt,) => {{
@@ -75,7 +83,11 @@ macro_rules! match_architecture {
         unsafe { $Simd $arm }
         #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
         unsafe { $Simd $web }
-        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64", target_arch = "arm", target_arch = "aarch64", target_arch = "wasm32")))]
+        #[cfg(not(any(
+            all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "sse2"),
+            all(any(target_arch = "arm", target_arch = "aarch64"), target_feature = "neon"),
+            all(target_arch = "wasm32", target_feature = "simd128"),
+        )))]
         unsafe { $Simd $fallback }
     }};
 }
