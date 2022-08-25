@@ -206,6 +206,38 @@ impl Powf for ppga3d::Motor {
     }
 }
 
+impl Exp for ppga3d::Branch {
+    type Output = ppga3d::Translator;
+
+    fn exp(self) -> ppga3d::Translator {
+        ppga3d::Translator {
+            g0: simd::Simd32x4 {
+                f32x4: [1.0, self.g0[0], self.g0[1], self.g0[2]],
+            }
+        }
+    }
+}
+
+impl Ln for ppga3d::Translator {
+    type Output = ppga3d::Branch;
+
+    fn ln(self) -> ppga3d::Branch {
+        ppga3d::Branch {
+            g0: simd::Simd32x3 {
+                f32x3: [self.g0[1] / self.g0[0], self.g0[2] / self.g0[0], self.g0[3] / self.g0[0]],
+            }
+        }
+    }
+}
+
+impl Powf for ppga3d::Translator {
+    type Output = Self;
+
+    fn powf(self, exponent: f32) -> Self {
+        (ppga3d::Scalar { g0: exponent } * self.ln()).exp()
+    }
+}
+
 /// All elements set to `0.0`
 pub trait Zero {
     fn zero() -> Self;
