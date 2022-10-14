@@ -79,6 +79,37 @@ impl Powf for epga1d::ComplexNumber {
     }
 }
 
+impl Exp for ppga2d::IdealPoint {
+    type Output = ppga2d::Translator;
+
+    fn exp(self) -> ppga2d::Translator {
+        ppga2d::Translator {
+            g0: simd::Simd32x3 {
+                f32x3: [1.0, self.g0[0], self.g0[1]],
+            }
+        }
+    }
+}
+
+impl Ln for ppga2d::Translator {
+    type Output = ppga2d::IdealPoint;
+
+    fn ln(self) -> ppga2d::IdealPoint {
+        ppga2d::IdealPoint {
+            g0: simd::Simd32x2 {
+                f32x2: [self.g0[1] / self.g0[0], self.g0[2] / self.g0[0]],
+            }
+        }
+    }
+}
+
+impl Powf for ppga2d::Translator {
+    type Output = Self;
+
+    fn powf(self, exponent: f32) -> Self {
+        (ppga2d::Scalar { g0: exponent } * self.ln()).exp()
+    }
+}
 impl Exp for ppga2d::Point {
     type Output = ppga2d::Motor;
 
@@ -199,6 +230,38 @@ impl Ln for ppga3d::Motor {
 }
 
 impl Powf for ppga3d::Motor {
+    type Output = Self;
+
+    fn powf(self, exponent: f32) -> Self {
+        (ppga3d::Scalar { g0: exponent } * self.ln()).exp()
+    }
+}
+
+impl Exp for ppga3d::IdealLine {
+    type Output = ppga3d::Translator;
+
+    fn exp(self) -> ppga3d::Translator {
+        ppga3d::Translator {
+            g0: simd::Simd32x4 {
+                f32x4: [1.0, self.g0[0], self.g0[1], self.g0[2]],
+            }
+        }
+    }
+}
+
+impl Ln for ppga3d::Translator {
+    type Output = ppga3d::IdealLine;
+
+    fn ln(self) -> ppga3d::IdealLine {
+        ppga3d::IdealLine {
+            g0: simd::Simd32x3 {
+                f32x3: [self.g0[1] / self.g0[0], self.g0[2] / self.g0[0], self.g0[3] / self.g0[0]],
+            }
+        }
+    }
+}
+
+impl Powf for ppga3d::Translator {
     type Output = Self;
 
     fn powf(self, exponent: f32) -> Self {
