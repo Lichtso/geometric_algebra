@@ -1,5 +1,3 @@
-use std::ops::{Index, IndexMut};
-
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 pub use std::arch::aarch64::*;
 #[cfg(all(target_arch = "arm", target_feature = "neon"))]
@@ -136,7 +134,7 @@ macro_rules! swizzle {
     };
 }
 
-impl Index<usize> for Simd32x4 {
+impl std::ops::Index<usize> for Simd32x4 {
     type Output = f32;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -144,7 +142,7 @@ impl Index<usize> for Simd32x4 {
     }
 }
 
-impl Index<usize> for Simd32x3 {
+impl std::ops::Index<usize> for Simd32x3 {
     type Output = f32;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -152,7 +150,7 @@ impl Index<usize> for Simd32x3 {
     }
 }
 
-impl Index<usize> for Simd32x2 {
+impl std::ops::Index<usize> for Simd32x2 {
     type Output = f32;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -160,19 +158,19 @@ impl Index<usize> for Simd32x2 {
     }
 }
 
-impl IndexMut<usize> for Simd32x4 {
+impl std::ops::IndexMut<usize> for Simd32x4 {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         unsafe { &mut self.f32x4[index] }
     }
 }
 
-impl IndexMut<usize> for Simd32x3 {
+impl std::ops::IndexMut<usize> for Simd32x3 {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         unsafe { &mut self.f32x3[index] }
     }
 }
 
-impl IndexMut<usize> for Simd32x2 {
+impl std::ops::IndexMut<usize> for Simd32x2 {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         unsafe { &mut self.f32x2[index] }
     }
@@ -241,11 +239,8 @@ impl std::convert::From<f32> for Simd32x2 {
 impl std::fmt::Debug for Simd32x4 {
     fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter
-            .debug_tuple("Vec4")
-            .field(&self[0])
-            .field(&self[1])
-            .field(&self[2])
-            .field(&self[3])
+            .debug_list()
+            .entries([self[0], self[1], self[2], self[3]].iter())
             .finish()
     }
 }
@@ -253,10 +248,8 @@ impl std::fmt::Debug for Simd32x4 {
 impl std::fmt::Debug for Simd32x3 {
     fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter
-            .debug_tuple("Vec3")
-            .field(&self[0])
-            .field(&self[1])
-            .field(&self[2])
+            .debug_list()
+            .entries([self[0], self[1], self[2]].iter())
             .finish()
     }
 }
@@ -264,9 +257,8 @@ impl std::fmt::Debug for Simd32x3 {
 impl std::fmt::Debug for Simd32x2 {
     fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter
-            .debug_tuple("Vec2")
-            .field(&self[0])
-            .field(&self[1])
+            .debug_list()
+            .entries([self[0], self[1]].iter())
             .finish()
     }
 }

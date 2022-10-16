@@ -12,42 +12,30 @@ pub mod hpga3d;
 pub mod simd;
 
 impl epga1d::Scalar {
-    pub const fn new(real: f32) -> Self {
-        Self { g0: real }
-    }
-
     pub fn real(self) -> f32 {
-        self.g0
+        self[0]
     }
 
     pub fn sqrt(self) -> epga1d::ComplexNumber {
-        if self.g0 < 0.0 {
-            epga1d::ComplexNumber::new(0.0, (-self.g0).sqrt())
+        if self[0] < 0.0 {
+            epga1d::ComplexNumber::from([0.0, (-self[0]).sqrt()])
         } else {
-            epga1d::ComplexNumber::new(self.g0.sqrt(), 0.0)
+            epga1d::ComplexNumber::from([self[0].sqrt(), 0.0])
         }
     }
 }
 
 impl epga1d::ComplexNumber {
-    pub const fn new(real: f32, imaginary: f32) -> Self {
-        Self {
-            g0: simd::Simd32x2 {
-                f32x2: [real, imaginary],
-            },
-        }
-    }
-
     pub fn real(self) -> f32 {
-        self.g0[0]
+        self[0]
     }
 
     pub fn imaginary(self) -> f32 {
-        self.g0[1]
+        self[1]
     }
 
     pub fn from_polar(magnitude: f32, argument: f32) -> Self {
-        Self::new(magnitude * argument.cos(), magnitude * argument.sin())
+        Self::from([magnitude * argument.cos(), magnitude * argument.sin()])
     }
 
     pub fn arg(self) -> f32 {
@@ -59,7 +47,7 @@ impl Exp for epga1d::ComplexNumber {
     type Output = Self;
 
     fn exp(self) -> Self {
-        Self::from_polar(self.g0[0].exp(), self.g0[1])
+        Self::from_polar(self[0].exp(), self[1])
     }
 }
 
@@ -67,7 +55,7 @@ impl Ln for epga1d::ComplexNumber {
     type Output = Self;
 
     fn ln(self) -> Self {
-        Self::new(self.magnitude().g0.ln(), self.arg())
+        Self::from([self.magnitude()[0].ln(), self.arg()])
     }
 }
 
@@ -75,7 +63,7 @@ impl Powf for epga1d::ComplexNumber {
     type Output = Self;
 
     fn powf(self, exponent: f32) -> Self {
-        Self::from_polar(self.magnitude().g0.powf(exponent), self.arg() * exponent)
+        Self::from_polar(self.magnitude()[0].powf(exponent), self.arg() * exponent)
     }
 }
 
@@ -83,11 +71,7 @@ impl Exp for ppga2d::IdealPoint {
     type Output = ppga2d::Translator;
 
     fn exp(self) -> ppga2d::Translator {
-        ppga2d::Translator {
-            g0: simd::Simd32x3 {
-                f32x3: [1.0, self.g0[0], self.g0[1]],
-            },
-        }
+        ppga2d::Translator::from([1.0, self[0], self[1]])
     }
 }
 
@@ -96,7 +80,7 @@ impl Ln for ppga2d::Translator {
 
     fn ln(self) -> ppga2d::IdealPoint {
         let result: ppga2d::IdealPoint = self.into();
-        result / ppga2d::Scalar { g0: self.g0[0] }
+        result / ppga2d::Scalar::from([self[0]])
     }
 }
 
@@ -104,7 +88,7 @@ impl Powf for ppga2d::Translator {
     type Output = Self;
 
     fn powf(self, exponent: f32) -> Self {
-        (ppga2d::Scalar { g0: exponent } * self.ln()).exp()
+        (ppga2d::Scalar::from([exponent]) * self.ln()).exp()
     }
 }
 
@@ -112,23 +96,15 @@ impl Exp for ppga2d::Point {
     type Output = ppga2d::Motor;
 
     fn exp(self) -> ppga2d::Motor {
-        let det = self.g0[0] * self.g0[0];
+        let det = self[0] * self[0];
         if det <= 0.0 {
-            return ppga2d::Motor {
-                g0: simd::Simd32x4 {
-                    f32x4: [1.0, 0.0, self.g0[1], self.g0[2]],
-                },
-            };
+            return ppga2d::Motor::from([1.0, 0.0, self[1], self[2]]);
         }
         let a = det.sqrt();
         let c = a.cos();
         let s = a.sin() / a;
-        let g0 = simd::Simd32x3::from(s) * self.g0;
-        ppga2d::Motor {
-            g0: simd::Simd32x4 {
-                f32x4: [c, g0[0], g0[1], g0[2]],
-            },
-        }
+        let g0 = simd::Simd32x3::from(s) * self.group0();
+        ppga2d::Motor::from([c, g0[0], g0[1], g0[2]])
     }
 }
 
@@ -136,22 +112,14 @@ impl Ln for ppga2d::Motor {
     type Output = ppga2d::Point;
 
     fn ln(self) -> ppga2d::Point {
-        let det = 1.0 - self.g0[0] * self.g0[0];
+        let det = 1.0 - self[0] * self[0];
         if det <= 0.0 {
-            return ppga2d::Point {
-                g0: simd::Simd32x3 {
-                    f32x3: [0.0, self.g0[2], self.g0[3]],
-                },
-            };
+            return ppga2d::Point::from([0.0, self[2], self[3]]);
         }
         let a = 1.0 / det;
-        let b = self.g0[0].acos() * a.sqrt();
-        let g0 = simd::Simd32x4::from(b) * self.g0;
-        return ppga2d::Point {
-            g0: simd::Simd32x3 {
-                f32x3: [g0[1], g0[2], g0[3]],
-            },
-        };
+        let b = self[0].acos() * a.sqrt();
+        let g0 = simd::Simd32x4::from(b) * self.group0();
+        return ppga2d::Point::from([g0[1], g0[2], g0[3]]);
     }
 }
 
@@ -159,7 +127,7 @@ impl Powf for ppga2d::Motor {
     type Output = Self;
 
     fn powf(self, exponent: f32) -> Self {
-        (ppga2d::Scalar { g0: exponent } * self.ln()).exp()
+        (ppga2d::Scalar::from([exponent]) * self.ln()).exp()
     }
 }
 
@@ -167,11 +135,7 @@ impl Exp for ppga3d::IdealPoint {
     type Output = ppga3d::Translator;
 
     fn exp(self) -> ppga3d::Translator {
-        ppga3d::Translator {
-            g0: simd::Simd32x4 {
-                f32x4: [1.0, self.g0[0], self.g0[1], self.g0[2]],
-            },
-        }
+        ppga3d::Translator::from([1.0, self[0], self[1], self[2]])
     }
 }
 
@@ -180,7 +144,7 @@ impl Ln for ppga3d::Translator {
 
     fn ln(self) -> ppga3d::IdealPoint {
         let result: ppga3d::IdealPoint = self.into();
-        result / ppga3d::Scalar { g0: self.g0[0] }
+        result / ppga3d::Scalar::from([self[0]])
     }
 }
 
@@ -188,7 +152,7 @@ impl Powf for ppga3d::Translator {
     type Output = Self;
 
     fn powf(self, exponent: f32) -> Self {
-        (ppga3d::Scalar { g0: exponent } * self.ln()).exp()
+        (ppga3d::Scalar::from([exponent]) * self.ln()).exp()
     }
 }
 
@@ -196,32 +160,18 @@ impl Exp for ppga3d::Line {
     type Output = ppga3d::Motor;
 
     fn exp(self) -> ppga3d::Motor {
-        let det = self.g1[0] * self.g1[0] + self.g1[1] * self.g1[1] + self.g1[2] * self.g1[2];
+        let det = self[3] * self[3] + self[4] * self[4] + self[5] * self[5];
         if det <= 0.0 {
-            return ppga3d::Motor {
-                g0: simd::Simd32x4 {
-                    f32x4: [1.0, 0.0, 0.0, 0.0],
-                },
-                g1: simd::Simd32x4 {
-                    f32x4: [0.0, self.g0[0], self.g0[1], self.g0[2]],
-                },
-            };
+            return ppga3d::Motor::from([1.0, 0.0, 0.0, 0.0, 0.0, self[0], self[1], self[2]]);
         }
         let a = det.sqrt();
         let c = a.cos();
         let s = a.sin() / a;
-        let m = self.g0[0] * self.g1[0] + self.g0[1] * self.g1[1] + self.g0[2] * self.g1[2];
+        let m = self[0] * self[3] + self[1] * self[4] + self[2] * self[5];
         let t = m / det * (c - s);
-        let g0 = simd::Simd32x3::from(s) * self.g1;
-        let g1 = simd::Simd32x3::from(s) * self.g0 + simd::Simd32x3::from(t) * self.g1;
-        ppga3d::Motor {
-            g0: simd::Simd32x4 {
-                f32x4: [c, g0[0], g0[1], g0[2]],
-            },
-            g1: simd::Simd32x4 {
-                f32x4: [s * m, g1[0], g1[1], g1[2]],
-            },
-        }
+        let g0 = simd::Simd32x3::from(s) * self.group1();
+        let g1 = simd::Simd32x3::from(s) * self.group0() + simd::Simd32x3::from(t) * self.group1();
+        ppga3d::Motor::from([c, g0[0], g0[1], g0[2], s * m, g1[0], g1[1], g1[2]])
     }
 }
 
@@ -229,30 +179,16 @@ impl Ln for ppga3d::Motor {
     type Output = ppga3d::Line;
 
     fn ln(self) -> ppga3d::Line {
-        let det = 1.0 - self.g0[0] * self.g0[0];
+        let det = 1.0 - self[0] * self[0];
         if det <= 0.0 {
-            return ppga3d::Line {
-                g0: simd::Simd32x3 {
-                    f32x3: [self.g1[1], self.g1[2], self.g1[3]],
-                },
-                g1: simd::Simd32x3 {
-                    f32x3: [0.0, 0.0, 0.0],
-                },
-            };
+            return ppga3d::Line::from([self[5], self[6], self[7], 0.0, 0.0, 0.0]);
         }
         let a = 1.0 / det;
-        let b = self.g0[0].acos() * a.sqrt();
-        let c = a * self.g1[0] * (1.0 - self.g0[0] * b);
-        let g0 = simd::Simd32x4::from(b) * self.g1 + simd::Simd32x4::from(c) * self.g0;
-        let g1 = simd::Simd32x4::from(b) * self.g0;
-        return ppga3d::Line {
-            g0: simd::Simd32x3 {
-                f32x3: [g0[1], g0[2], g0[3]],
-            },
-            g1: simd::Simd32x3 {
-                f32x3: [g1[1], g1[2], g1[3]],
-            },
-        };
+        let b = self[0].acos() * a.sqrt();
+        let c = a * self[4] * (1.0 - self[0] * b);
+        let g0 = simd::Simd32x4::from(b) * self.group1() + simd::Simd32x4::from(c) * self.group0();
+        let g1 = simd::Simd32x4::from(b) * self.group0();
+        return ppga3d::Line::from([g0[1], g0[2], g0[3], g1[1], g1[2], g1[3]]);
     }
 }
 
@@ -260,7 +196,7 @@ impl Powf for ppga3d::Motor {
     type Output = Self;
 
     fn powf(self, exponent: f32) -> Self {
-        (ppga3d::Scalar { g0: exponent } * self.ln()).exp()
+        (ppga3d::Scalar::from([exponent]) * self.ln()).exp()
     }
 }
 

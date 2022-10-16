@@ -25,7 +25,7 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
                 }
                 ExpressionContent::InvokeClassMethod(class, _, _) => {
                     if *method_name == "Constructor" {
-                        collector.write_fmt(format_args!("{} {{ ", class.class_name))?;
+                        collector.write_fmt(format_args!("{} {{ groups: {}Groups {{ ", class.class_name, class.class_name))?;
                     } else {
                         collector.write_fmt(format_args!("{}::", class.class_name))?;
                     }
@@ -46,7 +46,7 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
                 emit_expression(collector, &argument)?;
             }
             if *method_name == "Constructor" {
-                collector.write_all(b" }")?;
+                collector.write_all(b" } }")?;
             } else {
                 collector.write_all(b")")?;
             }
@@ -66,7 +66,7 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
         }
         ExpressionContent::Access(inner_expression, array_index) => {
             emit_expression(collector, &inner_expression)?;
-            collector.write_fmt(format_args!(".g{}", array_index))?;
+            collector.write_fmt(format_args!(".group{}()", array_index))?;
         }
         ExpressionContent::Swizzle(inner_expression, indices) => {
             if expression.size == 1 {
@@ -99,7 +99,7 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
                     collector.write_all(b", ")?;
                 }
                 emit_expression(collector, &inner_expression)?;
-                collector.write_fmt(format_args!(".g{}", array_index))?;
+                collector.write_fmt(format_args!(".group{}()", array_index))?;
                 if inner_expression.size > 1 {
                     collector.write_fmt(format_args!("[{}]", *component_index))?;
                 }
@@ -193,8 +193,11 @@ pub fn emit_code<W: std::io::Write>(collector: &mut W, ast_node: &AstNode, inden
                 .write_all(b"use crate::{simd::*, *};\nuse std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};\n\n")?;
         }
         AstNode::ClassDefinition { class } => {
-            collector.write_fmt(format_args!("#[derive(Clone, Copy, Debug)]\npub struct {} {{\n", class.class_name))?;
-            for (i, group) in class.grouped_basis.iter().enumerate() {
+            let element_count = class.grouped_basis.iter().fold(0, |a, b| a + b.len());
+            let mut simd_widths = Vec::new();
+            emit_indentation(collector, indentation)?;
+            collector.write_fmt(format_args!("#[derive(Clone, Copy)]\nstruct {}Groups {{\n", class.class_name))?;
+            for (j, group) in class.grouped_basis.iter().enumerate() {
                 emit_indentation(collector, indentation + 1)?;
                 collector.write_all(b"/// ")?;
                 for (i, element) in group.iter().enumerate() {
@@ -205,13 +208,216 @@ pub fn emit_code<W: std::io::Write>(collector: &mut W, ast_node: &AstNode, inden
                 }
                 collector.write_all(b"\n")?;
                 emit_indentation(collector, indentation + 1)?;
-                collector.write_fmt(format_args!("pub g{}: ", i))?;
-                if group.len() == 1 {
-                    collector.write_all(b"f32,\n")?;
+                collector.write_fmt(format_args!("g{}: ", j))?;
+                simd_widths.push(if group.len() == 1 {
+                    collector.write_all(b"f32")?;
+                    1
                 } else {
-                    collector.write_fmt(format_args!("Simd32x{},\n", group.len()))?;
+                    collector.write_fmt(format_args!("Simd32x{}", group.len()))?;
+                    4
+                });
+                collector.write_all(b",\n")?;
+            }
+            collector.write_all(b"}\n\n")?;
+            emit_indentation(collector, indentation)?;
+            collector.write_fmt(format_args!("#[derive(Clone, Copy)]\npub union {} {{\n", class.class_name))?;
+            emit_indentation(collector, indentation + 1)?;
+            collector.write_fmt(format_args!("groups: {}Groups,\n", class.class_name))?;
+            emit_indentation(collector, indentation + 1)?;
+            collector.write_all(b"/// ")?;
+            for (j, group) in class.grouped_basis.iter().enumerate() {
+                for (i, element) in group.iter().enumerate() {
+                    if j > 0 || i > 0 {
+                        collector.write_all(b", ")?;
+                    }
+                    collector.write_fmt(format_args!("{}", element))?;
+                }
+                for _ in group.len()..simd_widths[j] {
+                    collector.write_all(b", 0")?;
                 }
             }
+            collector.write_all(b"\n")?;
+            emit_indentation(collector, indentation + 1)?;
+            collector.write_fmt(format_args!("elements: [f32; {}],\n", simd_widths.iter().fold(0, |a, b| a + b)))?;
+            emit_indentation(collector, indentation)?;
+            collector.write_all(b"}\n\n")?;
+            emit_indentation(collector, indentation)?;
+            collector.write_fmt(format_args!("impl {} {{\n", class.class_name))?;
+            emit_indentation(collector, indentation + 1)?;
+            collector.write_all(b"pub const fn new(")?;
+            for i in 0..element_count {
+                if i > 0 {
+                    collector.write_all(b", ")?;
+                }
+                collector.write_fmt(format_args!("element{}: f32", i))?;
+            }
+            collector.write_all(b") -> Self {\n")?;
+            emit_indentation(collector, indentation + 2)?;
+            collector.write_all(b"Self { elements: [")?;
+            let mut element_index = 0;
+            for (j, group) in class.grouped_basis.iter().enumerate() {
+                for _ in 0..group.len() {
+                    if element_index > 0 {
+                        collector.write_all(b", ")?;
+                    }
+                    collector.write_fmt(format_args!("element{}", element_index))?;
+                    element_index += 1;
+                }
+                for _ in group.len()..simd_widths[j] {
+                    collector.write_all(b", 0.0")?;
+                }
+            }
+            collector.write_all(b"] }\n")?;
+            emit_indentation(collector, indentation + 1)?;
+            collector.write_all(b"}\n")?;
+            for (j, group) in class.grouped_basis.iter().enumerate() {
+                emit_indentation(collector, indentation + 1)?;
+                collector.write_all(b"#[inline(always)]\n")?;
+                emit_indentation(collector, indentation + 1)?;
+                collector.write_fmt(format_args!("pub fn group{}(&self) -> ", j))?;
+                if group.len() == 1 {
+                    collector.write_all(b"f32")?;
+                } else {
+                    collector.write_fmt(format_args!("Simd32x{}", group.len()))?;
+                }
+                collector.write_all(b" {\n")?;
+                emit_indentation(collector, indentation + 2)?;
+                collector.write_fmt(format_args!("unsafe {{ self.groups.g{} }}\n", j))?;
+                emit_indentation(collector, indentation + 1)?;
+                collector.write_all(b"}\n")?;
+                emit_indentation(collector, indentation + 1)?;
+                collector.write_all(b"#[inline(always)]\n")?;
+                emit_indentation(collector, indentation + 1)?;
+                collector.write_fmt(format_args!("pub fn group{}_mut(&mut self) -> &mut ", j))?;
+                if group.len() == 1 {
+                    collector.write_all(b"f32")?;
+                } else {
+                    collector.write_fmt(format_args!("Simd32x{}", group.len()))?;
+                }
+                collector.write_all(b" {\n")?;
+                emit_indentation(collector, indentation + 2)?;
+                collector.write_fmt(format_args!("unsafe {{ &mut self.groups.g{} }}\n", j))?;
+                emit_indentation(collector, indentation + 1)?;
+                collector.write_all(b"}\n")?;
+            }
+            emit_indentation(collector, indentation)?;
+            collector.write_all(b"}\n\n")?;
+            emit_indentation(collector, indentation)?;
+            collector.write_fmt(format_args!(
+                "const {}_INDEX_REMAP: [usize; {}] = [",
+                class.class_name.to_uppercase(),
+                element_count
+            ))?;
+            let mut element_index = 0;
+            let mut index_remap = Vec::new();
+            for (j, group) in class.grouped_basis.iter().enumerate() {
+                for _ in 0..group.len() {
+                    if element_index > 0 {
+                        collector.write_all(b", ")?;
+                    }
+                    collector.write_fmt(format_args!("{}", element_index))?;
+                    index_remap.push(element_index);
+                    element_index += 1;
+                }
+                element_index += simd_widths[j].saturating_sub(group.len());
+            }
+            collector.write_all(b"];\n\n")?;
+            emit_indentation(collector, indentation)?;
+            collector.write_fmt(format_args!("impl std::ops::Index<usize> for {} {{\n", class.class_name))?;
+            emit_indentation(collector, indentation + 1)?;
+            collector.write_all(b"type Output = f32;\n\n")?;
+            emit_indentation(collector, indentation + 1)?;
+            collector.write_all(b"fn index(&self, index: usize) -> &Self::Output {\n")?;
+            emit_indentation(collector, indentation + 2)?;
+            collector.write_fmt(format_args!(
+                "unsafe {{ &self.elements[{}_INDEX_REMAP[index]] }}\n",
+                class.class_name.to_uppercase()
+            ))?;
+            emit_indentation(collector, indentation + 1)?;
+            collector.write_all(b"}\n")?;
+            emit_indentation(collector, indentation)?;
+            collector.write_all(b"}\n\n")?;
+            emit_indentation(collector, indentation)?;
+            collector.write_fmt(format_args!("impl std::ops::IndexMut<usize> for {} {{\n", class.class_name))?;
+            emit_indentation(collector, indentation + 1)?;
+            collector.write_all(b"fn index_mut(&mut self, index: usize) -> &mut Self::Output {\n")?;
+            emit_indentation(collector, indentation + 2)?;
+            collector.write_fmt(format_args!(
+                "unsafe {{ &mut self.elements[{}_INDEX_REMAP[index]] }}\n",
+                class.class_name.to_uppercase()
+            ))?;
+            emit_indentation(collector, indentation + 1)?;
+            collector.write_all(b"}\n")?;
+            emit_indentation(collector, indentation)?;
+            collector.write_all(b"}\n\n")?;
+            emit_indentation(collector, indentation)?;
+            collector.write_fmt(format_args!(
+                "impl std::convert::From<{}> for [f32; {}] {{\n",
+                class.class_name, element_count
+            ))?;
+            emit_indentation(collector, indentation + 1)?;
+            collector.write_fmt(format_args!("fn from(vector: {}) -> Self {{\n", class.class_name))?;
+            emit_indentation(collector, indentation + 2)?;
+            collector.write_all(b"unsafe { [")?;
+            for i in 0..element_count {
+                if i > 0 {
+                    collector.write_all(b", ")?;
+                }
+                collector.write_fmt(format_args!("vector.elements[{}]", index_remap[i]))?;
+            }
+            collector.write_all(b"] }\n")?;
+            emit_indentation(collector, indentation + 1)?;
+            collector.write_all(b"}\n")?;
+            emit_indentation(collector, indentation)?;
+            collector.write_all(b"}\n\n")?;
+            emit_indentation(collector, indentation)?;
+            collector.write_fmt(format_args!(
+                "impl std::convert::From<[f32; {}]> for {} {{\n",
+                element_count, class.class_name
+            ))?;
+            emit_indentation(collector, indentation + 1)?;
+            collector.write_fmt(format_args!("fn from(array: [f32; {}]) -> Self {{\n", element_count))?;
+            emit_indentation(collector, indentation + 2)?;
+            collector.write_all(b"Self { elements: [")?;
+            let mut element_index = 0;
+            for (j, group) in class.grouped_basis.iter().enumerate() {
+                for _ in 0..group.len() {
+                    if element_index > 0 {
+                        collector.write_all(b", ")?;
+                    }
+                    collector.write_fmt(format_args!("array[{}]", element_index))?;
+                    element_index += 1;
+                }
+                for _ in group.len()..simd_widths[j] {
+                    collector.write_all(b", 0.0")?;
+                }
+            }
+            collector.write_all(b"] }\n")?;
+            emit_indentation(collector, indentation + 1)?;
+            collector.write_all(b"}\n")?;
+            emit_indentation(collector, indentation)?;
+            collector.write_all(b"}\n\n")?;
+            emit_indentation(collector, indentation)?;
+            collector.write_fmt(format_args!("impl std::fmt::Debug for {} {{\n", class.class_name))?;
+            emit_indentation(collector, indentation + 1)?;
+            collector.write_all(b"fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {\n")?;
+            emit_indentation(collector, indentation + 2)?;
+            collector.write_all(b"formatter\n")?;
+            emit_indentation(collector, indentation + 3)?;
+            collector.write_fmt(format_args!(".debug_struct(\"{}\")\n", class.class_name))?;
+            let mut element_index = 0;
+            for group in class.grouped_basis.iter() {
+                for element in group.iter() {
+                    emit_indentation(collector, indentation + 3)?;
+                    collector.write_fmt(format_args!(".field(\"{}\", &self[{}])\n", element, element_index))?;
+                    element_index += 1;
+                }
+            }
+            emit_indentation(collector, indentation + 3)?;
+            collector.write_all(b".finish()\n")?;
+            emit_indentation(collector, indentation + 1)?;
+            collector.write_all(b"}\n")?;
+            emit_indentation(collector, indentation)?;
             collector.write_all(b"}\n\n")?;
         }
         AstNode::ReturnStatement { expression } => {
