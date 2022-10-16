@@ -237,7 +237,7 @@ impl Powf for ppga3d::Motor {
     }
 }
 
-impl Exp for ppga3d::IdealLine {
+impl Exp for ppga3d::IdealPoint {
     type Output = ppga3d::Translator;
 
     fn exp(self) -> ppga3d::Translator {
@@ -250,10 +250,10 @@ impl Exp for ppga3d::IdealLine {
 }
 
 impl Ln for ppga3d::Translator {
-    type Output = ppga3d::IdealLine;
+    type Output = ppga3d::IdealPoint;
 
-    fn ln(self) -> ppga3d::IdealLine {
-        ppga3d::IdealLine {
+    fn ln(self) -> ppga3d::IdealPoint {
+        ppga3d::IdealPoint {
             g0: simd::Simd32x3 {
                 f32x3: [self.g0[1] / self.g0[0], self.g0[2] / self.g0[0], self.g0[3] / self.g0[0]],
             }
