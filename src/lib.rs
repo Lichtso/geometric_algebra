@@ -86,7 +86,7 @@ impl Exp for ppga2d::IdealPoint {
         ppga2d::Translator {
             g0: simd::Simd32x3 {
                 f32x3: [1.0, self.g0[0], self.g0[1]],
-            }
+            },
         }
     }
 }
@@ -95,11 +95,8 @@ impl Ln for ppga2d::Translator {
     type Output = ppga2d::IdealPoint;
 
     fn ln(self) -> ppga2d::IdealPoint {
-        ppga2d::IdealPoint {
-            g0: simd::Simd32x2 {
-                f32x2: [self.g0[1] / self.g0[0], self.g0[2] / self.g0[0]],
-            }
-        }
+        let result: ppga2d::IdealPoint = self.into();
+        result / ppga2d::Scalar { g0: self.g0[0] }
     }
 }
 
@@ -110,6 +107,7 @@ impl Powf for ppga2d::Translator {
         (ppga2d::Scalar { g0: exponent } * self.ln()).exp()
     }
 }
+
 impl Exp for ppga2d::Point {
     type Output = ppga2d::Motor;
 
@@ -244,7 +242,7 @@ impl Exp for ppga3d::IdealPoint {
         ppga3d::Translator {
             g0: simd::Simd32x4 {
                 f32x4: [1.0, self.g0[0], self.g0[1], self.g0[2]],
-            }
+            },
         }
     }
 }
@@ -253,11 +251,8 @@ impl Ln for ppga3d::Translator {
     type Output = ppga3d::IdealPoint;
 
     fn ln(self) -> ppga3d::IdealPoint {
-        ppga3d::IdealPoint {
-            g0: simd::Simd32x3 {
-                f32x3: [self.g0[1] / self.g0[0], self.g0[2] / self.g0[0], self.g0[3] / self.g0[0]],
-            }
-        }
+        let result: ppga3d::IdealPoint = self.into();
+        result / ppga3d::Scalar { g0: self.g0[0] }
     }
 }
 
