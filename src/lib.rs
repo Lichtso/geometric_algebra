@@ -163,6 +163,35 @@ impl Powf for ppga2d::Motor {
     }
 }
 
+impl Exp for ppga3d::IdealPoint {
+    type Output = ppga3d::Translator;
+
+    fn exp(self) -> ppga3d::Translator {
+        ppga3d::Translator {
+            g0: simd::Simd32x4 {
+                f32x4: [1.0, self.g0[0], self.g0[1], self.g0[2]],
+            },
+        }
+    }
+}
+
+impl Ln for ppga3d::Translator {
+    type Output = ppga3d::IdealPoint;
+
+    fn ln(self) -> ppga3d::IdealPoint {
+        let result: ppga3d::IdealPoint = self.into();
+        result / ppga3d::Scalar { g0: self.g0[0] }
+    }
+}
+
+impl Powf for ppga3d::Translator {
+    type Output = Self;
+
+    fn powf(self, exponent: f32) -> Self {
+        (ppga3d::Scalar { g0: exponent } * self.ln()).exp()
+    }
+}
+
 impl Exp for ppga3d::Line {
     type Output = ppga3d::Motor;
 
@@ -228,35 +257,6 @@ impl Ln for ppga3d::Motor {
 }
 
 impl Powf for ppga3d::Motor {
-    type Output = Self;
-
-    fn powf(self, exponent: f32) -> Self {
-        (ppga3d::Scalar { g0: exponent } * self.ln()).exp()
-    }
-}
-
-impl Exp for ppga3d::IdealPoint {
-    type Output = ppga3d::Translator;
-
-    fn exp(self) -> ppga3d::Translator {
-        ppga3d::Translator {
-            g0: simd::Simd32x4 {
-                f32x4: [1.0, self.g0[0], self.g0[1], self.g0[2]],
-            },
-        }
-    }
-}
-
-impl Ln for ppga3d::Translator {
-    type Output = ppga3d::IdealPoint;
-
-    fn ln(self) -> ppga3d::IdealPoint {
-        let result: ppga3d::IdealPoint = self.into();
-        result / ppga3d::Scalar { g0: self.g0[0] }
-    }
-}
-
-impl Powf for ppga3d::Translator {
     type Output = Self;
 
     fn powf(self, exponent: f32) -> Self {
