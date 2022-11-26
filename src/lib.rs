@@ -88,7 +88,9 @@ impl Powf for ppga2d::Translator {
     type Output = Self;
 
     fn powf(self, exponent: f32) -> Self {
-        (ppga2d::Scalar::from([exponent]) * self.ln()).exp()
+        self.ln()
+            .geometric_product(ppga2d::Scalar::from([exponent]))
+            .exp()
     }
 }
 
@@ -127,7 +129,9 @@ impl Powf for ppga2d::Motor {
     type Output = Self;
 
     fn powf(self, exponent: f32) -> Self {
-        (ppga2d::Scalar::from([exponent]) * self.ln()).exp()
+        self.ln()
+            .geometric_product(ppga2d::Scalar::from([exponent]))
+            .exp()
     }
 }
 
@@ -152,7 +156,9 @@ impl Powf for ppga3d::Translator {
     type Output = Self;
 
     fn powf(self, exponent: f32) -> Self {
-        (ppga3d::Scalar::from([exponent]) * self.ln()).exp()
+        self.ln()
+            .geometric_product(ppga3d::Scalar::from([exponent]))
+            .exp()
     }
 }
 
@@ -196,7 +202,9 @@ impl Powf for ppga3d::Motor {
     type Output = Self;
 
     fn powf(self, exponent: f32) -> Self {
-        (ppga3d::Scalar::from([exponent]) * self.ln()).exp()
+        self.ln()
+            .geometric_product(ppga3d::Scalar::from([exponent]))
+            .exp()
     }
 }
 

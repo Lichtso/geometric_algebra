@@ -592,42 +592,6 @@ impl MultiVectorClass {
         }
     }
 
-    pub fn derive_multiplication<'a>(
-        name: &'static str,
-        geometric_product: &AstNode<'a>,
-        parameter_a: &Parameter<'a>,
-        parameter_b: &Parameter<'a>,
-    ) -> AstNode<'a> {
-        let geometric_product_result = result_of_trait!(geometric_product);
-        AstNode::TraitImplementation {
-            result: Parameter {
-                name,
-                data_type: geometric_product_result.data_type.clone(),
-            },
-            parameters: vec![parameter_a.clone(), parameter_b.clone()],
-            body: vec![AstNode::ReturnStatement {
-                expression: Box::new(Expression {
-                    size: 1,
-                    content: ExpressionContent::InvokeInstanceMethod(
-                        parameter_a.data_type.clone(),
-                        Box::new(Expression {
-                            size: 1,
-                            content: ExpressionContent::Variable(parameter_a.name),
-                        }),
-                        geometric_product_result.name,
-                        vec![(
-                            DataType::MultiVector(parameter_b.multi_vector_class()),
-                            Expression {
-                                size: 1,
-                                content: ExpressionContent::Variable(parameter_b.name),
-                            },
-                        )],
-                    ),
-                }),
-            }],
-        }
-    }
-
     pub fn derive_squared_magnitude<'a>(
         name: &'static str,
         scalar_product: &AstNode<'a>,

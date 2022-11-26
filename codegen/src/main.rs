@@ -158,8 +158,6 @@ fn main() {
         for (parameter_b, pair_trait_implementations) in pair_trait_implementations.values() {
             if let Some(geometric_product) = pair_trait_implementations.get("GeometricProduct") {
                 let geometric_product_result = result_of_trait!(geometric_product);
-                let multiplication = MultiVectorClass::derive_multiplication("Mul", &geometric_product, &parameter_a, &parameter_b);
-                emitter.emit(&multiplication).unwrap();
                 if parameter_a.multi_vector_class() == parameter_b.multi_vector_class()
                     && geometric_product_result.multi_vector_class() == parameter_a.multi_vector_class()
                 {
