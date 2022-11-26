@@ -412,3 +412,53 @@ impl std::ops::Mul<Simd32x2> for Simd32x2 {
         )
     }
 }
+
+impl std::ops::Div<Simd32x4> for Simd32x4 {
+    type Output = Simd32x4;
+
+    fn div(self, other: Self) -> Self {
+        match_architecture!(
+            Self,
+            { f128: _mm_div_ps(self.f128, other.f128) },
+            { f128: vdivq_f32(self.f128, other.f128) },
+            { v128: f32x4_div(self.v128, other.v128) },
+            { f32x4: [
+                self.f32x4[0] / other.f32x4[0],
+                self.f32x4[1] / other.f32x4[1],
+                self.f32x4[2] / other.f32x4[2],
+                self.f32x4[3] / other.f32x4[3],
+            ] },
+        )
+    }
+}
+
+impl std::ops::Div<Simd32x3> for Simd32x3 {
+    type Output = Simd32x3;
+
+    fn div(self, other: Self) -> Self {
+        match_architecture!(
+            Self,
+            { v32x4: unsafe { self.v32x4 / other.v32x4 } },
+            { f32x3: [
+                self.f32x3[0] / other.f32x3[0],
+                self.f32x3[1] / other.f32x3[1],
+                self.f32x3[2] / other.f32x3[2],
+            ] },
+        )
+    }
+}
+
+impl std::ops::Div<Simd32x2> for Simd32x2 {
+    type Output = Simd32x2;
+
+    fn div(self, other: Self) -> Self {
+        match_architecture!(
+            Self,
+            { v32x4: unsafe { self.v32x4 / other.v32x4 } },
+            { f32x2: [
+                self.f32x2[0] / other.f32x2[0],
+                self.f32x2[1] / other.f32x2[1],
+            ] },
+        )
+    }
+}

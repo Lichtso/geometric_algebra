@@ -97,10 +97,19 @@ fn main() {
                 }
             }
             for name in &["Add", "Sub"] {
-                let ast_node = MultiVectorClass::sum(*name, &parameter_a, &parameter_b, &registry);
+                let ast_node = MultiVectorClass::element_wise(*name, &parameter_a, &parameter_b, &registry);
                 emitter.emit(&ast_node).unwrap();
                 if ast_node != AstNode::None {
                     trait_implementations.insert(name.to_string(), ast_node);
+                }
+            }
+            if class_a == class_b {
+                for name in &["Mul", "Div"] {
+                    let ast_node = MultiVectorClass::element_wise(*name, &parameter_a, &parameter_b, &registry);
+                    emitter.emit(&ast_node).unwrap();
+                    if ast_node != AstNode::None {
+                        trait_implementations.insert(name.to_string(), ast_node);
+                    }
                 }
             }
             for (name, product) in products.iter() {

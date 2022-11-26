@@ -287,7 +287,7 @@ impl MultiVectorClass {
         }
     }
 
-    pub fn sum<'a>(
+    pub fn element_wise<'a>(
         name: &'static str,
         parameter_a: &Parameter<'a>,
         parameter_b: &Parameter<'a>,
@@ -355,6 +355,8 @@ impl MultiVectorClass {
                         content: match name {
                             "Add" => ExpressionContent::Add(Box::new(expressions.next().unwrap()), Box::new(expressions.next().unwrap())),
                             "Sub" => ExpressionContent::Subtract(Box::new(expressions.next().unwrap()), Box::new(expressions.next().unwrap())),
+                            "Mul" => ExpressionContent::Multiply(Box::new(expressions.next().unwrap()), Box::new(expressions.next().unwrap())),
+                            "Div" => ExpressionContent::Divide(Box::new(expressions.next().unwrap()), Box::new(expressions.next().unwrap())),
                             _ => unreachable!(),
                         },
                     })),
