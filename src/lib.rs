@@ -18,9 +18,9 @@ impl epga1d::Scalar {
 
     pub fn sqrt(self) -> epga1d::ComplexNumber {
         if self[0] < 0.0 {
-            epga1d::ComplexNumber::from([0.0, (-self[0]).sqrt()])
+            epga1d::ComplexNumber::new(0.0, (-self[0]).sqrt())
         } else {
-            epga1d::ComplexNumber::from([self[0].sqrt(), 0.0])
+            epga1d::ComplexNumber::new(self[0].sqrt(), 0.0)
         }
     }
 }
@@ -35,7 +35,7 @@ impl epga1d::ComplexNumber {
     }
 
     pub fn from_polar(magnitude: f32, argument: f32) -> Self {
-        Self::from([magnitude * argument.cos(), magnitude * argument.sin()])
+        Self::new(magnitude * argument.cos(), magnitude * argument.sin())
     }
 
     pub fn arg(self) -> f32 {
@@ -55,7 +55,7 @@ impl Ln for epga1d::ComplexNumber {
     type Output = Self;
 
     fn ln(self) -> Self {
-        Self::from([self.magnitude()[0].ln(), self.arg()])
+        Self::new(self.magnitude()[0].ln(), self.arg())
     }
 }
 
@@ -71,7 +71,7 @@ impl Exp for ppga2d::IdealPoint {
     type Output = ppga2d::Translator;
 
     fn exp(self) -> ppga2d::Translator {
-        ppga2d::Translator::from([1.0, self[0], self[1]])
+        ppga2d::Translator::new(1.0, self[0], self[1])
     }
 }
 
@@ -98,13 +98,13 @@ impl Exp for ppga2d::Point {
     fn exp(self) -> ppga2d::Motor {
         let det = self[0] * self[0];
         if det <= 0.0 {
-            return ppga2d::Motor::from([1.0, 0.0, self[1], self[2]]);
+            return ppga2d::Motor::new(1.0, 0.0, self[1], self[2]);
         }
         let a = det.sqrt();
         let c = a.cos();
         let s = a.sin() / a;
         let g0 = simd::Simd32x3::from(s) * self.group0();
-        ppga2d::Motor::from([c, g0[0], g0[1], g0[2]])
+        ppga2d::Motor::new(c, g0[0], g0[1], g0[2])
     }
 }
 
@@ -114,12 +114,12 @@ impl Ln for ppga2d::Motor {
     fn ln(self) -> ppga2d::Point {
         let det = 1.0 - self[0] * self[0];
         if det <= 0.0 {
-            return ppga2d::Point::from([0.0, self[2], self[3]]);
+            return ppga2d::Point::new(0.0, self[2], self[3]);
         }
         let a = 1.0 / det;
         let b = self[0].acos() * a.sqrt();
         let g0 = simd::Simd32x4::from(b) * self.group0();
-        return ppga2d::Point::from([g0[1], g0[2], g0[3]]);
+        ppga2d::Point::new(g0[1], g0[2], g0[3])
     }
 }
 
@@ -135,7 +135,7 @@ impl Exp for ppga3d::IdealPoint {
     type Output = ppga3d::Translator;
 
     fn exp(self) -> ppga3d::Translator {
-        ppga3d::Translator::from([1.0, self[0], self[1], self[2]])
+        ppga3d::Translator::new(1.0, self[0], self[1], self[2])
     }
 }
 
@@ -162,7 +162,7 @@ impl Exp for ppga3d::Line {
     fn exp(self) -> ppga3d::Motor {
         let det = self[3] * self[3] + self[4] * self[4] + self[5] * self[5];
         if det <= 0.0 {
-            return ppga3d::Motor::from([1.0, 0.0, 0.0, 0.0, 0.0, self[0], self[1], self[2]]);
+            return ppga3d::Motor::new(1.0, 0.0, 0.0, 0.0, 0.0, self[0], self[1], self[2]);
         }
         let a = det.sqrt();
         let c = a.cos();
@@ -171,7 +171,7 @@ impl Exp for ppga3d::Line {
         let t = m / det * (c - s);
         let g0 = simd::Simd32x3::from(s) * self.group1();
         let g1 = simd::Simd32x3::from(s) * self.group0() + simd::Simd32x3::from(t) * self.group1();
-        ppga3d::Motor::from([c, g0[0], g0[1], g0[2], s * m, g1[0], g1[1], g1[2]])
+        ppga3d::Motor::new(c, g0[0], g0[1], g0[2], s * m, g1[0], g1[1], g1[2])
     }
 }
 
@@ -181,14 +181,14 @@ impl Ln for ppga3d::Motor {
     fn ln(self) -> ppga3d::Line {
         let det = 1.0 - self[0] * self[0];
         if det <= 0.0 {
-            return ppga3d::Line::from([self[5], self[6], self[7], 0.0, 0.0, 0.0]);
+            return ppga3d::Line::new(self[5], self[6], self[7], 0.0, 0.0, 0.0);
         }
         let a = 1.0 / det;
         let b = self[0].acos() * a.sqrt();
         let c = a * self[4] * (1.0 - self[0] * b);
         let g0 = simd::Simd32x4::from(b) * self.group1() + simd::Simd32x4::from(c) * self.group0();
         let g1 = simd::Simd32x4::from(b) * self.group0();
-        return ppga3d::Line::from([g0[1], g0[2], g0[3], g1[1], g1[2], g1[3]]);
+        ppga3d::Line::new(g0[1], g0[2], g0[3], g1[1], g1[2], g1[3])
     }
 }
 

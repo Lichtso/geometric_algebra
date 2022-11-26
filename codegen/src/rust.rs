@@ -21,7 +21,7 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
         ExpressionContent::InvokeClassMethod(_, method_name, arguments) | ExpressionContent::InvokeInstanceMethod(_, _, method_name, arguments) => {
             match &expression.content {
                 ExpressionContent::InvokeInstanceMethod(_result_class, inner_expression, _, _) => {
-                    emit_expression(collector, &inner_expression)?;
+                    emit_expression(collector, inner_expression)?;
                     collector.write_all(b".")?;
                 }
                 ExpressionContent::InvokeClassMethod(class, _, _) => {
@@ -44,7 +44,7 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
                 if *method_name == "Constructor" {
                     collector.write_fmt(format_args!("g{}: ", i))?;
                 }
-                emit_expression(collector, &argument)?;
+                emit_expression(collector, argument)?;
             }
             if *method_name == "Constructor" {
                 collector.write_all(b" } }")?;
@@ -53,31 +53,31 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
             }
         }
         ExpressionContent::Conversion(_source_class, _destination_class, inner_expression) => {
-            emit_expression(collector, &inner_expression)?;
+            emit_expression(collector, inner_expression)?;
             collector.write_all(b".into()")?;
         }
         ExpressionContent::Select(condition_expression, then_expression, else_expression) => {
             collector.write_all(b"if ")?;
-            emit_expression(collector, &condition_expression)?;
+            emit_expression(collector, condition_expression)?;
             collector.write_all(b" { ")?;
-            emit_expression(collector, &then_expression)?;
+            emit_expression(collector, then_expression)?;
             collector.write_all(b" } else { ")?;
-            emit_expression(collector, &else_expression)?;
+            emit_expression(collector, else_expression)?;
             collector.write_all(b" }")?;
         }
         ExpressionContent::Access(inner_expression, array_index) => {
-            emit_expression(collector, &inner_expression)?;
+            emit_expression(collector, inner_expression)?;
             collector.write_fmt(format_args!(".group{}()", array_index))?;
         }
         ExpressionContent::Swizzle(inner_expression, indices) => {
             if expression.size == 1 {
-                emit_expression(collector, &inner_expression)?;
+                emit_expression(collector, inner_expression)?;
                 if inner_expression.size > 1 {
                     collector.write_fmt(format_args!("[{}]", indices[0]))?;
                 }
             } else {
                 collector.write_all(b"swizzle!(")?;
-                emit_expression(collector, &inner_expression)?;
+                emit_expression(collector, inner_expression)?;
                 collector.write_all(b", ")?;
                 for (i, component_index) in indices.iter().enumerate() {
                     if i > 0 {
@@ -90,7 +90,8 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
         }
         ExpressionContent::Gather(inner_expression, indices) => {
             if expression.size > 1 {
-                collector.write_fmt(format_args!("Simd32x{}::from(", expression.size))?;
+                emit_data_type(collector, &DataType::SimdVector(expression.size))?;
+                collector.write_all(b"::from(")?;
             }
             if indices.len() > 1 {
                 collector.write_all(b"[")?;
@@ -99,7 +100,7 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
                 if i > 0 {
                     collector.write_all(b", ")?;
                 }
-                emit_expression(collector, &inner_expression)?;
+                emit_expression(collector, inner_expression)?;
                 collector.write_fmt(format_args!(".group{}()", array_index))?;
                 if inner_expression.size > 1 {
                     collector.write_fmt(format_args!("[{}]", *component_index))?;
@@ -118,7 +119,8 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
                 if expression.size == 1 {
                     collector.write_fmt(format_args!("{:.1}", values[0] as f32))?;
                 } else {
-                    collector.write_fmt(format_args!("Simd32x{}::from(", expression.size))?;
+                    emit_data_type(collector, &DataType::SimdVector(expression.size))?;
+                    collector.write_all(b"::from(")?;
                     if values.len() > 1 {
                         collector.write_all(b"[")?;
                     }
@@ -137,7 +139,7 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
             _ => unreachable!(),
         },
         ExpressionContent::SquareRoot(inner_expression) => {
-            emit_expression(collector, &inner_expression)?;
+            emit_expression(collector, inner_expression)?;
             collector.write_all(b".sqrt()")?;
         }
         ExpressionContent::Add(lhs, rhs)
@@ -148,7 +150,7 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
         | ExpressionContent::Equal(lhs, rhs)
         | ExpressionContent::LogicAnd(lhs, rhs)
         | ExpressionContent::BitShiftRight(lhs, rhs) => {
-            emit_expression(collector, &lhs)?;
+            emit_expression(collector, lhs)?;
             collector.write_all(match expression.content {
                 ExpressionContent::Add(_, _) => b" + ",
                 ExpressionContent::Subtract(_, _) => b" - ",
@@ -160,7 +162,7 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
                 ExpressionContent::BitShiftRight(_, _) => b" >> ",
                 _ => unreachable!(),
             })?;
-            emit_expression(collector, &rhs)?;
+            emit_expression(collector, rhs)?;
         }
     }
     Ok(())
@@ -210,14 +212,9 @@ pub fn emit_code<W: std::io::Write>(collector: &mut W, ast_node: &AstNode, inden
                 collector.write_all(b"\n")?;
                 emit_indentation(collector, indentation + 1)?;
                 collector.write_fmt(format_args!("g{}: ", j))?;
-                simd_widths.push(if group.len() == 1 {
-                    collector.write_all(b"f32")?;
-                    1
-                } else {
-                    collector.write_fmt(format_args!("Simd32x{}", group.len()))?;
-                    4
-                });
+                emit_data_type(collector, &DataType::SimdVector(group.len()))?;
                 collector.write_all(b",\n")?;
+                simd_widths.push(if group.len() == 1 { 1 } else { 4 });
             }
             collector.write_all(b"}\n\n")?;
             emit_indentation(collector, indentation)?;
@@ -244,6 +241,8 @@ pub fn emit_code<W: std::io::Write>(collector: &mut W, ast_node: &AstNode, inden
             collector.write_all(b"}\n\n")?;
             emit_indentation(collector, indentation)?;
             collector.write_fmt(format_args!("impl {} {{\n", class.class_name))?;
+            emit_indentation(collector, indentation + 1)?;
+            collector.write_all(b"#[allow(clippy::too_many_arguments)]\n")?;
             emit_indentation(collector, indentation + 1)?;
             collector.write_all(b"pub const fn new(")?;
             for i in 0..element_count {
@@ -278,11 +277,7 @@ pub fn emit_code<W: std::io::Write>(collector: &mut W, ast_node: &AstNode, inden
                     collector.write_all(b", ")?;
                 }
                 collector.write_fmt(format_args!("g{}: ", j))?;
-                if group.len() == 1 {
-                    collector.write_all(b"f32")?;
-                } else {
-                    collector.write_fmt(format_args!("Simd32x{}", group.len()))?;
-                }
+                emit_data_type(collector, &DataType::SimdVector(group.len()))?;
             }
             collector.write_all(b") -> Self {\n")?;
             emit_indentation(collector, indentation + 2)?;
@@ -301,11 +296,7 @@ pub fn emit_code<W: std::io::Write>(collector: &mut W, ast_node: &AstNode, inden
                 collector.write_all(b"#[inline(always)]\n")?;
                 emit_indentation(collector, indentation + 1)?;
                 collector.write_fmt(format_args!("pub fn group{}(&self) -> ", j))?;
-                if group.len() == 1 {
-                    collector.write_all(b"f32")?;
-                } else {
-                    collector.write_fmt(format_args!("Simd32x{}", group.len()))?;
-                }
+                emit_data_type(collector, &DataType::SimdVector(group.len()))?;
                 collector.write_all(b" {\n")?;
                 emit_indentation(collector, indentation + 2)?;
                 collector.write_fmt(format_args!("unsafe {{ self.groups.g{} }}\n", j))?;
@@ -315,11 +306,7 @@ pub fn emit_code<W: std::io::Write>(collector: &mut W, ast_node: &AstNode, inden
                 collector.write_all(b"#[inline(always)]\n")?;
                 emit_indentation(collector, indentation + 1)?;
                 collector.write_fmt(format_args!("pub fn group{}_mut(&mut self) -> &mut ", j))?;
-                if group.len() == 1 {
-                    collector.write_all(b"f32")?;
-                } else {
-                    collector.write_fmt(format_args!("Simd32x{}", group.len()))?;
-                }
+                emit_data_type(collector, &DataType::SimdVector(group.len()))?;
                 collector.write_all(b" {\n")?;
                 emit_indentation(collector, indentation + 2)?;
                 collector.write_fmt(format_args!("unsafe {{ &mut self.groups.g{} }}\n", j))?;
@@ -385,11 +372,11 @@ pub fn emit_code<W: std::io::Write>(collector: &mut W, ast_node: &AstNode, inden
             collector.write_fmt(format_args!("fn from(vector: {}) -> Self {{\n", class.class_name))?;
             emit_indentation(collector, indentation + 2)?;
             collector.write_all(b"unsafe { [")?;
-            for i in 0..element_count {
+            for (i, remapped) in index_remap.iter().enumerate() {
                 if i > 0 {
                     collector.write_all(b", ")?;
                 }
-                collector.write_fmt(format_args!("vector.elements[{}]", index_remap[i]))?;
+                collector.write_fmt(format_args!("vector.elements[{}]", remapped))?;
             }
             collector.write_all(b"] }\n")?;
             emit_indentation(collector, indentation + 1)?;
@@ -537,7 +524,7 @@ pub fn emit_code<W: std::io::Write>(collector: &mut W, ast_node: &AstNode, inden
             collector.write_all(b"}\n}\n\n")?;
             match result.name {
                 "Add" | "Sub" | "Mul" | "Div" => {
-                    emit_assign_trait(collector, result, &parameters)?;
+                    emit_assign_trait(collector, result, parameters)?;
                 }
                 _ => {}
             }

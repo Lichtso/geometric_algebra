@@ -33,7 +33,7 @@ fn main() {
     let basis = algebra.sorted_basis();
     for b in basis.iter() {
         for a in basis.iter() {
-            print!("{:1$} ", BasisElement::product(&a, &b, &algebra), generator_squares.len() + 2);
+            print!("{:1$} ", BasisElement::product(a, b, &algebra), generator_squares.len() + 2);
         }
         println!();
     }
@@ -75,7 +75,7 @@ fn main() {
             }
         }
         for (name, involution) in involutions.iter() {
-            let ast_node = MultiVectorClass::involution(name, &involution, &parameter_a, &registry, false);
+            let ast_node = MultiVectorClass::involution(name, involution, &parameter_a, &registry, false);
             emitter.emit(&ast_node).unwrap();
             if ast_node != AstNode::None {
                 single_trait_implementations.insert(name.to_string(), ast_node);
@@ -90,7 +90,7 @@ fn main() {
             };
             if class_a != class_b {
                 let name = "Into";
-                let ast_node = MultiVectorClass::involution(name, &Involution::projection(&class_b), &parameter_a, &registry, true);
+                let ast_node = MultiVectorClass::involution(name, &Involution::projection(class_b), &parameter_a, &registry, true);
                 emitter.emit(&ast_node).unwrap();
                 if ast_node != AstNode::None {
                     trait_implementations.insert(name.to_string(), ast_node);
@@ -104,7 +104,7 @@ fn main() {
                 }
             }
             for (name, product) in products.iter() {
-                let ast_node = MultiVectorClass::product(name, &product, &parameter_a, &parameter_b, &registry);
+                let ast_node = MultiVectorClass::product(name, product, &parameter_a, &parameter_b, &registry);
                 emitter.emit(&ast_node).unwrap();
                 if ast_node != AstNode::None {
                     trait_implementations.insert(name.to_string(), ast_node);
@@ -120,7 +120,7 @@ fn main() {
                 if let Some(reversal) = single_trait_implementations.get("Reversal") {
                     if parameter_a.multi_vector_class() == parameter_b.multi_vector_class() {
                         let squared_magnitude =
-                            MultiVectorClass::derive_squared_magnitude("SquaredMagnitude", &scalar_product, &reversal, &parameter_a);
+                            MultiVectorClass::derive_squared_magnitude("SquaredMagnitude", scalar_product, reversal, &parameter_a);
                         emitter.emit(&squared_magnitude).unwrap();
                         let magnitude = MultiVectorClass::derive_magnitude("Magnitude", &squared_magnitude, &parameter_a);
                         emitter.emit(&magnitude).unwrap();
@@ -133,17 +133,16 @@ fn main() {
         for (parameter_b, pair_trait_implementations) in pair_trait_implementations.values() {
             if let Some(geometric_product) = pair_trait_implementations.get("GeometricProduct") {
                 if parameter_b.multi_vector_class().grouped_basis == vec![vec![BasisElement::from_index(0)]] {
-                    let scale = MultiVectorClass::derive_scale("Scale", &geometric_product, &parameter_a, &parameter_b);
+                    let scale = MultiVectorClass::derive_scale("Scale", geometric_product, &parameter_a, parameter_b);
                     emitter.emit(&scale).unwrap();
                     if let Some(magnitude) = single_trait_implementations.get("Magnitude") {
-                        let signum = MultiVectorClass::derive_signum("Signum", &geometric_product, &magnitude, &parameter_a);
+                        let signum = MultiVectorClass::derive_signum("Signum", geometric_product, magnitude, &parameter_a);
                         emitter.emit(&signum).unwrap();
                         single_trait_implementations.insert(result_of_trait!(signum).name.to_string(), signum);
                     }
                     if let Some(squared_magnitude) = single_trait_implementations.get("SquaredMagnitude") {
                         if let Some(reversal) = single_trait_implementations.get("Reversal") {
-                            let inverse =
-                                MultiVectorClass::derive_inverse("Inverse", &geometric_product, &squared_magnitude, &reversal, &parameter_a);
+                            let inverse = MultiVectorClass::derive_inverse("Inverse", geometric_product, squared_magnitude, reversal, &parameter_a);
                             emitter.emit(&inverse).unwrap();
                             single_trait_implementations.insert(result_of_trait!(inverse).name.to_string(), inverse);
                         }
@@ -167,10 +166,10 @@ fn main() {
                         if let Some(inverse) = single_trait_implementations.get("Inverse") {
                             let power_of_integer = MultiVectorClass::derive_power_of_integer(
                                 "Powi",
-                                &geometric_product,
-                                &constant_one,
-                                &inverse,
-                                &parameter_a,
+                                geometric_product,
+                                constant_one,
+                                inverse,
+                                parameter_a,
                                 &Parameter {
                                     name: "exponent",
                                     data_type: DataType::Integer,
@@ -182,8 +181,7 @@ fn main() {
                 }
                 if let Some(b_trait_implementations) = trait_implementations.get(&parameter_b.multi_vector_class().class_name) {
                     if let Some(inverse) = b_trait_implementations.1.get("Inverse") {
-                        let division =
-                            MultiVectorClass::derive_division("GeometricQuotient", &geometric_product, &inverse, &parameter_a, &parameter_b);
+                        let division = MultiVectorClass::derive_division("GeometricQuotient", geometric_product, inverse, parameter_a, parameter_b);
                         emitter.emit(&division).unwrap();
                     }
                 }
@@ -200,12 +198,12 @@ fn main() {
                                     {
                                         let transformation = MultiVectorClass::derive_sandwich_product(
                                             "Transformation",
-                                            &geometric_product,
-                                            &geometric_product_2,
-                                            &reversal,
+                                            geometric_product,
+                                            geometric_product_2,
+                                            reversal,
                                             c_pair_trait_implementations.1.get("Into"),
-                                            &parameter_a,
-                                            &parameter_b,
+                                            parameter_a,
+                                            parameter_b,
                                         );
                                         emitter.emit(&transformation).unwrap();
                                     }

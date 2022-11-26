@@ -70,7 +70,7 @@ impl BasisElement {
             scalar: self.scalar,
             index: algebra.basis_size() as BasisElementIndex - 1 - self.index,
         };
-        result.scalar *= BasisElement::product(&self, &result, &algebra).scalar;
+        result.scalar *= BasisElement::product(self, &result, algebra).scalar;
         result
     }
 
@@ -186,7 +186,7 @@ impl Involution {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct ProductTerm {
     pub product: BasisElement,
     pub factor_a: BasisElement,
@@ -199,18 +199,17 @@ pub struct Product {
 }
 
 impl Product {
-    pub fn product(a: &[BasisElement], b: &[BasisElement], algebra: &GeometricAlgebra) -> Self {
+    pub fn new(a: &[BasisElement], b: &[BasisElement], algebra: &GeometricAlgebra) -> Self {
         Self {
             terms: a
                 .iter()
-                .map(|a| {
+                .flat_map(|a| {
                     b.iter().map(move |b| ProductTerm {
-                        product: BasisElement::product(&a, &b, algebra),
+                        product: BasisElement::product(a, b, algebra),
                         factor_a: a.clone(),
                         factor_b: b.clone(),
                     })
                 })
-                .flatten()
                 .filter(|term| term.product.scalar != 0)
                 .collect(),
         }
@@ -246,12 +245,12 @@ impl Product {
 
     pub fn products(algebra: &GeometricAlgebra) -> Vec<(&'static str, Self)> {
         let basis = algebra.basis().collect::<Vec<_>>();
-        let product = Self::product(&basis, &basis, algebra);
+        let product = Self::new(&basis, &basis, algebra);
         vec![
             ("GeometricProduct", product.clone()),
             ("RegressiveProduct", product.projected(|r, s, t| t == r + s).dual(algebra)),
             ("OuterProduct", product.projected(|r, s, t| t == r + s)),
-            ("InnerProduct", product.projected(|r, s, t| t == (r as isize - s as isize).abs() as usize)),
+            ("InnerProduct", product.projected(|r, s, t| t == (r as isize - s as isize).unsigned_abs())),
             ("LeftContraction", product.projected(|r, s, t| t as isize == s as isize - r as isize)),
             ("RightContraction", product.projected(|r, s, t| t as isize == r as isize - s as isize)),
             ("ScalarProduct", product.projected(|_r, _s, t| t == 0)),

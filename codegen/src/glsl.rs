@@ -35,7 +35,7 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
                     }
                     camel_to_snake_case(collector, method_name)?;
                     collector.write_all(b"(")?;
-                    emit_expression(collector, &inner_expression)?;
+                    emit_expression(collector, inner_expression)?;
                     if !arguments.is_empty() {
                         collector.write_all(b", ")?;
                     }
@@ -56,7 +56,7 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
                 if i > 0 {
                     collector.write_all(b", ")?;
                 }
-                emit_expression(collector, &argument)?;
+                emit_expression(collector, argument)?;
             }
             collector.write_all(b")")?;
         }
@@ -65,23 +65,23 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
             collector.write_all(b"_")?;
             camel_to_snake_case(collector, &destination_class.class_name)?;
             collector.write_all(b"_into(")?;
-            emit_expression(collector, &inner_expression)?;
+            emit_expression(collector, inner_expression)?;
             collector.write_all(b")")?;
         }
         ExpressionContent::Select(condition_expression, then_expression, else_expression) => {
             collector.write_all(b"(")?;
-            emit_expression(collector, &condition_expression)?;
+            emit_expression(collector, condition_expression)?;
             collector.write_all(b") ? ")?;
-            emit_expression(collector, &then_expression)?;
+            emit_expression(collector, then_expression)?;
             collector.write_all(b" : ")?;
-            emit_expression(collector, &else_expression)?;
+            emit_expression(collector, else_expression)?;
         }
         ExpressionContent::Access(inner_expression, array_index) => {
-            emit_expression(collector, &inner_expression)?;
+            emit_expression(collector, inner_expression)?;
             collector.write_fmt(format_args!(".g{}", array_index))?;
         }
         ExpressionContent::Swizzle(inner_expression, indices) => {
-            emit_expression(collector, &inner_expression)?;
+            emit_expression(collector, inner_expression)?;
             collector.write_all(b".")?;
             for component_index in indices.iter() {
                 collector.write_all(COMPONENT[*component_index].bytes().collect::<Vec<_>>().as_slice())?;
@@ -89,13 +89,14 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
         }
         ExpressionContent::Gather(inner_expression, indices) => {
             if expression.size > 1 {
-                collector.write_fmt(format_args!("vec{}(", expression.size))?;
+                emit_data_type(collector, &DataType::SimdVector(expression.size))?;
+                collector.write_all(b"(")?;
             }
             for (i, (array_index, component_index)) in indices.iter().enumerate() {
                 if i > 0 {
                     collector.write_all(b", ")?;
                 }
-                emit_expression(collector, &inner_expression)?;
+                emit_expression(collector, inner_expression)?;
                 collector.write_fmt(format_args!(".g{}", array_index))?;
                 if inner_expression.size > 1 {
                     collector.write_fmt(format_args!(".{}", COMPONENT[*component_index]))?;
@@ -111,9 +112,9 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
                 if expression.size == 1 {
                     collector.write_fmt(format_args!("{:.1}", values[0] as f32))?
                 } else {
+                    emit_data_type(collector, &DataType::SimdVector(expression.size))?;
                     collector.write_fmt(format_args!(
-                        "vec{}({})",
-                        expression.size,
+                        "({})",
                         values.iter().map(|value| format!("{:.1}", *value as f32)).collect::<Vec<_>>().join(", ")
                     ))?
                 }
@@ -122,7 +123,7 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
         },
         ExpressionContent::SquareRoot(inner_expression) => {
             collector.write_all(b"sqrt(")?;
-            emit_expression(collector, &inner_expression)?;
+            emit_expression(collector, inner_expression)?;
             collector.write_all(b")")?;
         }
         ExpressionContent::Add(lhs, rhs)
@@ -136,7 +137,7 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
             if let ExpressionContent::LogicAnd(_, _) = expression.content {
                 collector.write_all(b"(")?;
             }
-            emit_expression(collector, &lhs)?;
+            emit_expression(collector, lhs)?;
             collector.write_all(match expression.content {
                 ExpressionContent::Add(_, _) => b" + ",
                 ExpressionContent::Subtract(_, _) => b" - ",
@@ -148,7 +149,7 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
                 ExpressionContent::BitShiftRight(_, _) => b" >> ",
                 _ => unreachable!(),
             })?;
-            emit_expression(collector, &rhs)?;
+            emit_expression(collector, rhs)?;
             if let ExpressionContent::LogicAnd(_, _) = expression.content {
                 collector.write_all(b")")?;
             }
@@ -174,11 +175,7 @@ pub fn emit_code<W: std::io::Write>(collector: &mut W, ast_node: &AstNode, inden
                 }
                 collector.write_all(b"\n")?;
                 emit_indentation(collector, indentation + 1)?;
-                if group.len() == 1 {
-                    collector.write_all(b"float")?;
-                } else {
-                    collector.write_fmt(format_args!("vec{}", group.len()))?;
-                }
+                emit_data_type(collector, &DataType::SimdVector(group.len()))?;
                 collector.write_fmt(format_args!(" g{};\n", i))?;
             }
             emit_indentation(collector, indentation)?;
