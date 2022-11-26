@@ -270,6 +270,31 @@ pub fn emit_code<W: std::io::Write>(collector: &mut W, ast_node: &AstNode, inden
             collector.write_all(b"] }\n")?;
             emit_indentation(collector, indentation + 1)?;
             collector.write_all(b"}\n")?;
+            emit_indentation(collector, indentation + 1)?;
+            collector.write_all(b"pub const fn from_groups(")?;
+            for (j, group) in class.grouped_basis.iter().enumerate() {
+                if j > 0 {
+                    collector.write_all(b", ")?;
+                }
+                collector.write_fmt(format_args!("g{}: ", j))?;
+                if group.len() == 1 {
+                    collector.write_all(b"f32")?;
+                } else {
+                    collector.write_fmt(format_args!("Simd32x{}", group.len()))?;
+                }
+            }
+            collector.write_all(b") -> Self {\n")?;
+            emit_indentation(collector, indentation + 2)?;
+            collector.write_fmt(format_args!("Self {{ groups: {}Groups {{ ", class.class_name))?;
+            for j in 0..class.grouped_basis.len() {
+                if j > 0 {
+                    collector.write_all(b", ")?;
+                }
+                collector.write_fmt(format_args!("g{}", j))?;
+            }
+            collector.write_all(b" } }\n")?;
+            emit_indentation(collector, indentation + 1)?;
+            collector.write_all(b"}\n")?;
             for (j, group) in class.grouped_basis.iter().enumerate() {
                 emit_indentation(collector, indentation + 1)?;
                 collector.write_all(b"#[inline(always)]\n")?;
