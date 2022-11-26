@@ -80,7 +80,7 @@ impl Ln for ppga2d::Translator {
 
     fn ln(self) -> ppga2d::IdealPoint {
         let result: ppga2d::IdealPoint = self.into();
-        result.geometric_product(ppga2d::Scalar::from([1.0 / self[0]]))
+        result.scale(1.0 / self[0])
     }
 }
 
@@ -88,9 +88,7 @@ impl Powf for ppga2d::Translator {
     type Output = Self;
 
     fn powf(self, exponent: f32) -> Self {
-        self.ln()
-            .geometric_product(ppga2d::Scalar::from([exponent]))
-            .exp()
+        self.ln().scale(exponent).exp()
     }
 }
 
@@ -129,9 +127,7 @@ impl Powf for ppga2d::Motor {
     type Output = Self;
 
     fn powf(self, exponent: f32) -> Self {
-        self.ln()
-            .geometric_product(ppga2d::Scalar::from([exponent]))
-            .exp()
+        self.ln().scale(exponent).exp()
     }
 }
 
@@ -148,7 +144,7 @@ impl Ln for ppga3d::Translator {
 
     fn ln(self) -> ppga3d::IdealPoint {
         let result: ppga3d::IdealPoint = self.into();
-        result.geometric_product(ppga3d::Scalar::from([1.0 / self[0]]))
+        result.scale(1.0 / self[0])
     }
 }
 
@@ -156,9 +152,7 @@ impl Powf for ppga3d::Translator {
     type Output = Self;
 
     fn powf(self, exponent: f32) -> Self {
-        self.ln()
-            .geometric_product(ppga3d::Scalar::from([exponent]))
-            .exp()
+        self.ln().scale(exponent).exp()
     }
 }
 
@@ -202,9 +196,7 @@ impl Powf for ppga3d::Motor {
     type Output = Self;
 
     fn powf(self, exponent: f32) -> Self {
-        self.ln()
-            .geometric_product(ppga3d::Scalar::from([exponent]))
-            .exp()
+        self.ln().scale(exponent).exp()
     }
 }
 
@@ -306,6 +298,12 @@ pub trait ScalarProduct<T> {
 pub trait Transformation<T> {
     type Output;
     fn transformation(self, other: T) -> Self::Output;
+}
+
+/// Geometric product with a scalar
+pub trait Scale {
+    type Output;
+    fn scale(self, other: f32) -> Self::Output;
 }
 
 /// Square of the magnitude

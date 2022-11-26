@@ -6,7 +6,8 @@ use crate::{
 fn emit_data_type<W: std::io::Write>(collector: &mut W, data_type: &DataType) -> std::io::Result<()> {
     match data_type {
         DataType::Integer => collector.write_all(b"isize"),
-        DataType::SimdVector(size) => collector.write_fmt(format_args!("Simd32x{}", size)),
+        DataType::SimdVector(size) if *size == 1 => collector.write_all(b"f32"),
+        DataType::SimdVector(size) => collector.write_fmt(format_args!("Simd32x{}", *size)),
         DataType::MultiVector(class) => collector.write_fmt(format_args!("{}", class.class_name)),
     }
 }
@@ -487,7 +488,7 @@ pub fn emit_code<W: std::io::Write>(collector: &mut W, ast_node: &AstNode, inden
                     parameters[0].multi_vector_class().class_name,
                 ))?,
                 1 => collector.write_fmt(format_args!("impl {} for {}", result.name, parameters[0].multi_vector_class().class_name))?,
-                2 if result.name == "Powi" => {
+                2 if !matches!(parameters[1].data_type, DataType::MultiVector(_)) => {
                     collector.write_fmt(format_args!("impl {} for {}", result.name, parameters[0].multi_vector_class().class_name))?
                 }
                 2 => collector.write_fmt(format_args!(

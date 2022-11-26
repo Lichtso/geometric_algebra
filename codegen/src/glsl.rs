@@ -8,7 +8,8 @@ const COMPONENT: &[&str] = &["x", "y", "z", "w"];
 fn emit_data_type<W: std::io::Write>(collector: &mut W, data_type: &DataType) -> std::io::Result<()> {
     match data_type {
         DataType::Integer => collector.write_all(b"int"),
-        DataType::SimdVector(size) => collector.write_fmt(format_args!("vec{}", size)),
+        DataType::SimdVector(size) if *size == 1 => collector.write_all(b"float"),
+        DataType::SimdVector(size) => collector.write_fmt(format_args!("vec{}", *size)),
         DataType::MultiVector(class) => collector.write_fmt(format_args!("{}", class.class_name)),
     }
 }
@@ -223,7 +224,9 @@ pub fn emit_code<W: std::io::Write>(collector: &mut W, ast_node: &AstNode, inden
                     camel_to_snake_case(collector, &result.multi_vector_class().class_name)?;
                 }
                 1 => camel_to_snake_case(collector, &parameters[0].multi_vector_class().class_name)?,
-                2 if result.name == "Powi" => camel_to_snake_case(collector, &parameters[0].multi_vector_class().class_name)?,
+                2 if !matches!(parameters[1].data_type, DataType::MultiVector(_)) => {
+                    camel_to_snake_case(collector, &parameters[0].multi_vector_class().class_name)?
+                }
                 2 => {
                     camel_to_snake_case(collector, &parameters[0].multi_vector_class().class_name)?;
                     collector.write_all(b"_")?;

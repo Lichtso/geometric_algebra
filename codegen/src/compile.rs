@@ -637,6 +637,58 @@ impl MultiVectorClass {
         }
     }
 
+    pub fn derive_scale<'a>(
+        name: &'static str,
+        geometric_product: &AstNode<'a>,
+        parameter_a: &Parameter<'a>,
+        parameter_b: &Parameter<'a>,
+    ) -> AstNode<'a> {
+        let geometric_product_result = result_of_trait!(geometric_product);
+        AstNode::TraitImplementation {
+            result: Parameter {
+                name,
+                data_type: geometric_product_result.data_type.clone(),
+            },
+            parameters: vec![
+                parameter_a.clone(),
+                Parameter {
+                    name: "other",
+                    data_type: DataType::SimdVector(1),
+                },
+            ],
+            body: vec![AstNode::ReturnStatement {
+                expression: Box::new(Expression {
+                    size: 1,
+                    content: ExpressionContent::InvokeInstanceMethod(
+                        parameter_a.data_type.clone(),
+                        Box::new(Expression {
+                            size: 1,
+                            content: ExpressionContent::Variable(parameter_a.name),
+                        }),
+                        geometric_product_result.name,
+                        vec![(
+                            DataType::MultiVector(parameter_b.multi_vector_class()),
+                            Expression {
+                                size: 1,
+                                content: ExpressionContent::InvokeClassMethod(
+                                    parameter_b.multi_vector_class(),
+                                    "Constructor",
+                                    vec![(
+                                        DataType::SimdVector(1),
+                                        Expression {
+                                            size: 1,
+                                            content: ExpressionContent::Variable(parameter_b.name),
+                                        },
+                                    )],
+                                ),
+                            },
+                        )],
+                    ),
+                }),
+            }],
+        }
+    }
+
     pub fn derive_magnitude<'a>(name: &'static str, squared_magnitude: &AstNode<'a>, parameter_a: &Parameter<'a>) -> AstNode<'a> {
         let squared_magnitude_result = result_of_trait!(squared_magnitude);
         AstNode::TraitImplementation {
