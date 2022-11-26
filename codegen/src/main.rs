@@ -180,7 +180,8 @@ fn main() {
                 }
                 if let Some(b_trait_implementations) = trait_implementations.get(&parameter_b.multi_vector_class().class_name) {
                     if let Some(inverse) = b_trait_implementations.1.get("Inverse") {
-                        let division = MultiVectorClass::derive_division("Div", &geometric_product, &inverse, &parameter_a, &parameter_b);
+                        let division =
+                            MultiVectorClass::derive_division("GeometricQuotient", &geometric_product, &inverse, &parameter_a, &parameter_b);
                         emitter.emit(&division).unwrap();
                     }
                 }

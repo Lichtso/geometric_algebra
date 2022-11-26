@@ -80,7 +80,7 @@ impl Ln for ppga2d::Translator {
 
     fn ln(self) -> ppga2d::IdealPoint {
         let result: ppga2d::IdealPoint = self.into();
-        result / ppga2d::Scalar::from([self[0]])
+        result.geometric_product(ppga2d::Scalar::from([1.0 / self[0]]))
     }
 }
 
@@ -148,7 +148,7 @@ impl Ln for ppga3d::Translator {
 
     fn ln(self) -> ppga3d::IdealPoint {
         let result: ppga3d::IdealPoint = self.into();
-        result / ppga3d::Scalar::from([self[0]])
+        result.geometric_product(ppga3d::Scalar::from([1.0 / self[0]]))
     }
 }
 
@@ -250,6 +250,12 @@ pub trait Conjugation {
 pub trait GeometricProduct<T> {
     type Output;
     fn geometric_product(self, other: T) -> Self::Output;
+}
+
+/// General multi vector division
+pub trait GeometricQuotient<T> {
+    type Output;
+    fn geometric_quotient(self, other: T) -> Self::Output;
 }
 
 /// Dual of the geometric product grade filtered by `t == r + s`
