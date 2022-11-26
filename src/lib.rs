@@ -10,6 +10,7 @@ pub mod epga3d;
 pub mod ppga3d;
 pub mod hpga3d;
 pub mod simd;
+pub mod polynomial;
 
 impl epga1d::Scalar {
     pub fn real(self) -> f32 {
