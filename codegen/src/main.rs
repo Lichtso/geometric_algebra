@@ -4,6 +4,7 @@ mod compile;
 mod emit;
 mod glsl;
 mod rust;
+mod wgsl;
 
 use crate::{
     algebra::{BasisElement, GeometricAlgebra, Involution, MultiVectorClass, MultiVectorClassRegistry, Product},
