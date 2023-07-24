@@ -1,3 +1,5 @@
+use crate::{algebra::BasisElement, ast::AstNode, glsl, rust};
+
 pub fn camel_to_snake_case<W: std::io::Write>(collector: &mut W, name: &str) -> std::io::Result<()> {
     let mut underscores = name.chars().enumerate().filter(|(_i, c)| c.is_uppercase()).map(|(i, _c)| i).peekable();
     for (i, c) in name.to_lowercase().bytes().enumerate() {
@@ -21,7 +23,21 @@ pub fn emit_indentation<W: std::io::Write>(collector: &mut W, indentation: usize
     Ok(())
 }
 
-use crate::{ast::AstNode, glsl, rust};
+pub fn emit_element_name<W: std::io::Write>(collector: &mut W, element: &BasisElement) -> std::io::Result<()> {
+    debug_assert_ne!(element.scalar, 0);
+    if element.index == 0 {
+        collector.write_all(b"scalar")
+    } else {
+        collector.write_all(if element.scalar < 0 { b"_e" } else { b"e" })?;
+        collector.write_all(
+            element
+                .component_bits()
+                .map(|index| format!("{:X}", index))
+                .collect::<String>()
+                .as_bytes(),
+        )
+    }
+}
 
 pub struct Emitter<W: std::io::Write> {
     pub rust_collector: W,

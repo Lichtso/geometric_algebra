@@ -1,6 +1,6 @@
 use crate::{
     ast::{AstNode, DataType, Expression, ExpressionContent, Parameter},
-    emit::{camel_to_snake_case, emit_indentation},
+    emit::{camel_to_snake_case, emit_element_name, emit_indentation},
 };
 
 fn emit_data_type<W: std::io::Write>(collector: &mut W, data_type: &DataType) -> std::io::Result<()> {
@@ -245,22 +245,27 @@ pub fn emit_code<W: std::io::Write>(collector: &mut W, ast_node: &AstNode, inden
             collector.write_all(b"#[allow(clippy::too_many_arguments)]\n")?;
             emit_indentation(collector, indentation + 1)?;
             collector.write_all(b"pub const fn new(")?;
-            for i in 0..element_count {
-                if i > 0 {
-                    collector.write_all(b", ")?;
+            let mut element_index = 0;
+            for group in class.grouped_basis.iter() {
+                for element in group.iter() {
+                    if element_index > 0 {
+                        collector.write_all(b", ")?;
+                    }
+                    emit_element_name(collector, element)?;
+                    collector.write_all(b": f32")?;
+                    element_index += 1;
                 }
-                collector.write_fmt(format_args!("element{}: f32", i))?;
             }
             collector.write_all(b") -> Self {\n")?;
             emit_indentation(collector, indentation + 2)?;
             collector.write_all(b"Self { elements: [")?;
-            let mut element_index = 0;
+            element_index = 0;
             for (j, group) in class.grouped_basis.iter().enumerate() {
-                for _ in 0..group.len() {
+                for element in group.iter() {
                     if element_index > 0 {
                         collector.write_all(b", ")?;
                     }
-                    collector.write_fmt(format_args!("element{}", element_index))?;
+                    emit_element_name(collector, element)?;
                     element_index += 1;
                 }
                 for _ in group.len()..simd_widths[j] {
