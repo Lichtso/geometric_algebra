@@ -141,7 +141,7 @@ fn main() {
         }
         for (parameter_b, pair_trait_implementations) in pair_trait_implementations.values() {
             if let Some(geometric_product) = pair_trait_implementations.get("GeometricProduct") {
-                if parameter_b.multi_vector_class().grouped_basis == vec![vec![BasisElement::from_index(0)]] {
+                if parameter_b.data_type.is_scalar() {
                     let scale = MultiVectorClass::derive_scale("Scale", geometric_product, &parameter_a, parameter_b);
                     emitter.emit(&scale).unwrap();
                     if let Some(magnitude) = single_trait_implementations.get("Magnitude") {

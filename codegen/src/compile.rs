@@ -147,7 +147,7 @@ impl MultiVectorClass {
     }
 
     pub fn is_scalar(&self) -> bool {
-        self.flat_basis() == vec![BasisElement { scalar: 1, index: 0 }]
+        self.grouped_basis == vec![vec![BasisElement::from_index(0)]]
     }
 
     pub fn signature(&self) -> Vec<BasisElementIndex> {
