@@ -10,7 +10,7 @@ pub enum DataType<'a> {
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ExpressionContent<'a> {
     None,
-    Variable(&'static str),
+    Variable(DataType<'a>, &'static str),
     InvokeClassMethod(&'a MultiVectorClass, &'static str, Vec<(DataType<'a>, Expression<'a>)>),
     InvokeInstanceMethod(DataType<'a>, Box<Expression<'a>>, &'static str, Vec<(DataType<'a>, Expression<'a>)>),
     Conversion(&'a MultiVectorClass, &'a MultiVectorClass, Box<Expression<'a>>),

@@ -255,7 +255,7 @@ impl MultiVectorClass {
                             content: ExpressionContent::Gather(
                                 Box::new(Expression {
                                     size: parameter_a.multi_vector_class().grouped_basis[a_group_index].len(),
-                                    content: ExpressionContent::Variable(parameter_a.name),
+                                    content: ExpressionContent::Variable(parameter_a.data_type.clone(), parameter_a.name),
                                 }),
                                 a_indices,
                             ),
@@ -333,7 +333,7 @@ impl MultiVectorClass {
                                         } else {
                                             size
                                         },
-                                        content: ExpressionContent::Variable(parameter.name),
+                                        content: ExpressionContent::Variable(parameter.data_type.clone(), parameter.name),
                                     }),
                                     terms.iter().map(|(_factor, index_pair)| index_pair).cloned().collect(),
                                 ),
@@ -471,11 +471,11 @@ impl MultiVectorClass {
                             assert!(contraction.1.content == ExpressionContent::None);
                             contraction.0 = Expression {
                                 size: parameter_a.multi_vector_class().grouped_basis[a_group_index].len(),
-                                content: ExpressionContent::Variable(parameter_a.name),
+                                content: ExpressionContent::Variable(parameter_a.data_type.clone(), parameter_a.name),
                             };
                             contraction.1 = Expression {
                                 size: parameter_b.multi_vector_class().grouped_basis[b_group_index].len(),
-                                content: ExpressionContent::Variable(parameter_b.name),
+                                content: ExpressionContent::Variable(parameter_b.data_type.clone(), parameter_b.name),
                             };
                             contraction.2 = a_indices.iter().map(|(a_group_index, _)| (*a_group_index, 0)).collect();
                             contraction.3 = b_indices.iter().map(|(b_group_index, _)| (*b_group_index, 0)).collect();
@@ -500,7 +500,7 @@ impl MultiVectorClass {
                                             content: ExpressionContent::Gather(
                                                 Box::new(Expression {
                                                     size: parameter_a.multi_vector_class().grouped_basis[a_group_index].len(),
-                                                    content: ExpressionContent::Variable(parameter_a.name),
+                                                    content: ExpressionContent::Variable(parameter_a.data_type.clone(), parameter_a.name),
                                                 }),
                                                 a_indices,
                                             ),
@@ -513,7 +513,7 @@ impl MultiVectorClass {
                                                     content: ExpressionContent::Gather(
                                                         Box::new(Expression {
                                                             size: parameter_b.multi_vector_class().grouped_basis[b_group_index].len(),
-                                                            content: ExpressionContent::Variable(parameter_b.name),
+                                                            content: ExpressionContent::Variable(parameter_b.data_type.clone(), parameter_b.name),
                                                         }),
                                                         b_indices,
                                                     ),
@@ -615,7 +615,7 @@ impl MultiVectorClass {
                         parameter_a.data_type.clone(),
                         Box::new(Expression {
                             size: 1,
-                            content: ExpressionContent::Variable(parameter_a.name),
+                            content: ExpressionContent::Variable(parameter_a.data_type.clone(), parameter_a.name),
                         }),
                         scalar_product_result.name,
                         vec![(
@@ -626,7 +626,7 @@ impl MultiVectorClass {
                                     parameter_a.data_type.clone(),
                                     Box::new(Expression {
                                         size: 1,
-                                        content: ExpressionContent::Variable(parameter_a.name),
+                                        content: ExpressionContent::Variable(parameter_a.data_type.clone(), parameter_a.name),
                                     }),
                                     involution_result.name,
                                     vec![],
@@ -665,7 +665,7 @@ impl MultiVectorClass {
                         parameter_a.data_type.clone(),
                         Box::new(Expression {
                             size: 1,
-                            content: ExpressionContent::Variable(parameter_a.name),
+                            content: ExpressionContent::Variable(parameter_a.data_type.clone(), parameter_a.name),
                         }),
                         geometric_product_result.name,
                         vec![(
@@ -679,7 +679,7 @@ impl MultiVectorClass {
                                         DataType::SimdVector(1),
                                         Expression {
                                             size: 1,
-                                            content: ExpressionContent::Variable(parameter_b.name),
+                                            content: ExpressionContent::Variable(parameter_b.data_type.clone(), parameter_b.name),
                                         },
                                     )],
                                 ),
@@ -718,7 +718,7 @@ impl MultiVectorClass {
                                                 parameter_a.data_type.clone(),
                                                 Box::new(Expression {
                                                     size: 1,
-                                                    content: ExpressionContent::Variable(parameter_a.name),
+                                                    content: ExpressionContent::Variable(parameter_a.data_type.clone(), parameter_a.name),
                                                 }),
                                                 squared_magnitude_result.name,
                                                 vec![],
@@ -756,7 +756,7 @@ impl MultiVectorClass {
                         parameter_a.data_type.clone(),
                         Box::new(Expression {
                             size: 1,
-                            content: ExpressionContent::Variable(parameter_a.name),
+                            content: ExpressionContent::Variable(parameter_a.data_type.clone(), parameter_a.name),
                         }),
                         geometric_product_result.name,
                         vec![(
@@ -784,7 +784,10 @@ impl MultiVectorClass {
                                                                 parameter_a.data_type.clone(),
                                                                 Box::new(Expression {
                                                                     size: 1,
-                                                                    content: ExpressionContent::Variable(parameter_a.name),
+                                                                    content: ExpressionContent::Variable(
+                                                                        parameter_a.data_type.clone(),
+                                                                        parameter_a.name,
+                                                                    ),
                                                                 }),
                                                                 magnitude_result.name,
                                                                 vec![],
@@ -832,7 +835,7 @@ impl MultiVectorClass {
                                 parameter_a.data_type.clone(),
                                 Box::new(Expression {
                                     size: 1,
-                                    content: ExpressionContent::Variable(parameter_a.name),
+                                    content: ExpressionContent::Variable(parameter_a.data_type.clone(), parameter_a.name),
                                 }),
                                 involution_result.name,
                                 vec![],
@@ -864,7 +867,10 @@ impl MultiVectorClass {
                                                                 parameter_a.data_type.clone(),
                                                                 Box::new(Expression {
                                                                     size: 1,
-                                                                    content: ExpressionContent::Variable(parameter_a.name),
+                                                                    content: ExpressionContent::Variable(
+                                                                        parameter_a.data_type.clone(),
+                                                                        parameter_a.name,
+                                                                    ),
                                                                 }),
                                                                 squared_magnitude_result.name,
                                                                 vec![],
@@ -909,7 +915,7 @@ impl MultiVectorClass {
                         content: ExpressionContent::Equal(
                             Box::new(Expression {
                                 size: 1,
-                                content: ExpressionContent::Variable(parameter_b.name),
+                                content: ExpressionContent::Variable(parameter_b.data_type.clone(), parameter_b.name),
                             }),
                             Box::new(Expression {
                                 size: 1,
@@ -935,7 +941,7 @@ impl MultiVectorClass {
                                 content: ExpressionContent::LessThan(
                                     Box::new(Expression {
                                         size: 1,
-                                        content: ExpressionContent::Variable(parameter_b.name),
+                                        content: ExpressionContent::Variable(parameter_b.data_type.clone(), parameter_b.name),
                                     }),
                                     Box::new(Expression {
                                         size: 1,
@@ -949,7 +955,7 @@ impl MultiVectorClass {
                                     parameter_a.data_type.clone(),
                                     Box::new(Expression {
                                         size: 1,
-                                        content: ExpressionContent::Variable(parameter_a.name),
+                                        content: ExpressionContent::Variable(parameter_a.data_type.clone(), parameter_a.name),
                                     }),
                                     inverse_result.name,
                                     vec![],
@@ -957,7 +963,7 @@ impl MultiVectorClass {
                             }),
                             Box::new(Expression {
                                 size: 1,
-                                content: ExpressionContent::Variable(parameter_a.name),
+                                content: ExpressionContent::Variable(parameter_a.data_type.clone(), parameter_a.name),
                             }),
                         ),
                     }),
@@ -979,7 +985,7 @@ impl MultiVectorClass {
                             DataType::Integer,
                             Box::new(Expression {
                                 size: 1,
-                                content: ExpressionContent::Variable(parameter_b.name),
+                                content: ExpressionContent::Variable(parameter_b.data_type.clone(), parameter_b.name),
                             }),
                             "Abs",
                             vec![],
@@ -996,7 +1002,7 @@ impl MultiVectorClass {
                             }),
                             Box::new(Expression {
                                 size: 1,
-                                content: ExpressionContent::Variable("n"),
+                                content: ExpressionContent::Variable(DataType::Integer, "n"),
                             }),
                         ),
                     }),
@@ -1010,7 +1016,7 @@ impl MultiVectorClass {
                                         content: ExpressionContent::LogicAnd(
                                             Box::new(Expression {
                                                 size: 1,
-                                                content: ExpressionContent::Variable("n"),
+                                                content: ExpressionContent::Variable(DataType::Integer, "n"),
                                             }),
                                             Box::new(Expression {
                                                 size: 1,
@@ -1033,14 +1039,14 @@ impl MultiVectorClass {
                                         parameter_a.data_type.clone(),
                                         Box::new(Expression {
                                             size: 1,
-                                            content: ExpressionContent::Variable("x"),
+                                            content: ExpressionContent::Variable(parameter_a.data_type.clone(), "x"),
                                         }),
                                         geometric_product_result.name,
                                         vec![(
                                             DataType::MultiVector(parameter_a.multi_vector_class()),
                                             Expression {
                                                 size: 1,
-                                                content: ExpressionContent::Variable("y"),
+                                                content: ExpressionContent::Variable(parameter_a.data_type.clone(), "y"),
                                             },
                                         )],
                                     ),
@@ -1056,14 +1062,14 @@ impl MultiVectorClass {
                                     parameter_a.data_type.clone(),
                                     Box::new(Expression {
                                         size: 1,
-                                        content: ExpressionContent::Variable("x"),
+                                        content: ExpressionContent::Variable(parameter_a.data_type.clone(), "x"),
                                     }),
                                     geometric_product_result.name,
                                     vec![(
                                         DataType::MultiVector(parameter_a.multi_vector_class()),
                                         Expression {
                                             size: 1,
-                                            content: ExpressionContent::Variable("x"),
+                                            content: ExpressionContent::Variable(parameter_a.data_type.clone(), "x"),
                                         },
                                     )],
                                 ),
@@ -1077,7 +1083,7 @@ impl MultiVectorClass {
                                 content: ExpressionContent::BitShiftRight(
                                     Box::new(Expression {
                                         size: 1,
-                                        content: ExpressionContent::Variable("n"),
+                                        content: ExpressionContent::Variable(DataType::Integer, "n"),
                                     }),
                                     Box::new(Expression {
                                         size: 1,
@@ -1095,14 +1101,14 @@ impl MultiVectorClass {
                             parameter_a.data_type.clone(),
                             Box::new(Expression {
                                 size: 1,
-                                content: ExpressionContent::Variable("x"),
+                                content: ExpressionContent::Variable(parameter_a.data_type.clone(), "x"),
                             }),
                             geometric_product_result.name,
                             vec![(
                                 DataType::MultiVector(parameter_a.multi_vector_class()),
                                 Expression {
                                     size: 1,
-                                    content: ExpressionContent::Variable("y"),
+                                    content: ExpressionContent::Variable(parameter_a.data_type.clone(), "y"),
                                 },
                             )],
                         ),
@@ -1134,7 +1140,7 @@ impl MultiVectorClass {
                         parameter_a.data_type.clone(),
                         Box::new(Expression {
                             size: 1,
-                            content: ExpressionContent::Variable(parameter_a.name),
+                            content: ExpressionContent::Variable(parameter_a.data_type.clone(), parameter_a.name),
                         }),
                         geometric_product_result.name,
                         vec![(
@@ -1145,7 +1151,7 @@ impl MultiVectorClass {
                                     parameter_b.data_type.clone(),
                                     Box::new(Expression {
                                         size: 1,
-                                        content: ExpressionContent::Variable(parameter_b.name),
+                                        content: ExpressionContent::Variable(parameter_b.data_type.clone(), parameter_b.name),
                                     }),
                                     inverse_result.name,
                                     vec![],
@@ -1180,14 +1186,14 @@ impl MultiVectorClass {
                         parameter_a.data_type.clone(),
                         Box::new(Expression {
                             size: 1,
-                            content: ExpressionContent::Variable(parameter_a.name),
+                            content: ExpressionContent::Variable(parameter_a.data_type.clone(), parameter_a.name),
                         }),
                         geometric_product_result.name,
                         vec![(
                             DataType::MultiVector(parameter_b.multi_vector_class()),
                             Expression {
                                 size: 1,
-                                content: ExpressionContent::Variable(parameter_b.name),
+                                content: ExpressionContent::Variable(parameter_b.data_type.clone(), parameter_b.name),
                             },
                         )],
                     ),
@@ -1201,7 +1207,7 @@ impl MultiVectorClass {
                             parameter_a.data_type.clone(),
                             Box::new(Expression {
                                 size: 1,
-                                content: ExpressionContent::Variable(parameter_a.name),
+                                content: ExpressionContent::Variable(parameter_a.data_type.clone(), parameter_a.name),
                             }),
                             involution_result.name,
                             vec![],

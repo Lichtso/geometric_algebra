@@ -17,7 +17,7 @@ fn emit_data_type<W: std::io::Write>(collector: &mut W, data_type: &DataType) ->
 fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression) -> std::io::Result<()> {
     match &expression.content {
         ExpressionContent::None => unreachable!(),
-        ExpressionContent::Variable(name) => {
+        ExpressionContent::Variable(_data_type, name) => {
             collector.write_all(name.bytes().collect::<Vec<_>>().as_slice())?;
         }
         ExpressionContent::InvokeClassMethod(_, _, arguments) | ExpressionContent::InvokeInstanceMethod(_, _, _, arguments) => {
