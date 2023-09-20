@@ -50,7 +50,7 @@ pub fn solve_quadratic(coefficients: [f32; 3], error_margin: f32) -> (f32, Vec<R
     }
     // https://en.wikipedia.org/wiki/Quadratic_formula
     let discriminant = coefficients[1].powi(2) - 4.0 * coefficients[2] * coefficients[0];
-    let q = Scalar::new(discriminant).sqrt();
+    let q = discriminant.sqrt();
     let mut solutions = Vec::with_capacity(3);
     for s in [-q, q] {
         let numerator = s - ComplexNumber::new(coefficients[1], 0.0);
@@ -93,10 +93,9 @@ pub fn solve_cubic(coefficients: [f32; 4], error_margin: f32) -> (f32, Vec<Root>
     ];
     let mut solutions = Vec::with_capacity(3);
     let discriminant = d[1].powi(2) - 4.0 * d[0].powi(3);
-    let c = Scalar::new(discriminant).sqrt();
-    let c = ((c + ComplexNumber::new(if c.real() + d[1] == 0.0 { -d[1] } else { d[1] }, 0.0))
-        .scale(0.5))
-    .powf(1.0 / 3.0);
+    let c = discriminant.sqrt();
+    let c = ((c + ComplexNumber::new(if c + d[1] == 0.0 { -d[1] } else { d[1] }, 0.0)).scale(0.5))
+        .powf(1.0 / 3.0);
     for root_of_unity in &ROOTS_OF_UNITY_3 {
         let ci = c.geometric_product(*root_of_unity);
         let denominator = ci.scale(3.0 * coefficients[3]);
@@ -105,7 +104,7 @@ pub fn solve_cubic(coefficients: [f32; 4], error_margin: f32) -> (f32, Vec<Root>
                 .geometric_product(denominator.reversal());
         solutions.push(Root {
             numerator,
-            denominator: denominator.squared_magnitude().real(),
+            denominator: denominator.squared_magnitude(),
         });
     }
     let real_root =
@@ -144,10 +143,9 @@ pub fn solve_quartic(coefficients: [f32; 5], error_margin: f32) -> (f32, Vec<Roo
             - 72.0 * coefficients[4] * coefficients[2] * coefficients[0],
     ];
     let discriminant = d[1].powi(2) - 4.0 * d[0].powi(3);
-    let c = Scalar::new(discriminant).sqrt();
-    let c = ((c + ComplexNumber::new(if c.real() + d[1] == 0.0 { -d[1] } else { d[1] }, 0.0))
-        .scale(0.5))
-    .powf(1.0 / 3.0);
+    let c = discriminant.sqrt();
+    let c = ((c + ComplexNumber::new(if c + d[1] == 0.0 { -d[1] } else { d[1] }, 0.0)).scale(0.5))
+        .powf(1.0 / 3.0);
     let e = ((c + ComplexNumber::new(d[0], 0.0).geometric_quotient(c))
         .scale(1.0 / (3.0 * coefficients[4]))
         - ComplexNumber::new(p * 2.0 / 3.0, 0.0))

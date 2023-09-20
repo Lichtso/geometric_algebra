@@ -146,6 +146,10 @@ impl MultiVectorClass {
         self.grouped_basis.iter().flatten().cloned().collect()
     }
 
+    pub fn is_scalar(&self) -> bool {
+        self.flat_basis() == vec![BasisElement { scalar: 1, index: 0 }]
+    }
+
     pub fn signature(&self) -> Vec<BasisElementIndex> {
         let mut signature: Vec<BasisElementIndex> = self.grouped_basis.iter().flatten().map(|element| element.index).collect();
         signature.sort_unstable();

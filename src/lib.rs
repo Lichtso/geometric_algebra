@@ -10,17 +10,144 @@ pub mod hpga3d;
 pub mod simd;
 pub mod polynomial;
 
-impl epga1d::Scalar {
-    pub fn real(self) -> f32 {
-        self[0]
+impl Zero for f32 {
+    fn zero() -> Self {
+        0.0
     }
+}
 
-    pub fn sqrt(self) -> epga1d::ComplexNumber {
-        if self[0] < 0.0 {
-            epga1d::ComplexNumber::new(0.0, (-self[0]).sqrt())
-        } else {
-            epga1d::ComplexNumber::new(self[0].sqrt(), 0.0)
-        }
+impl One for f32 {
+    fn one() -> Self {
+        1.0
+    }
+}
+
+impl Automorphism for f32 {
+    type Output = f32;
+
+    fn automorphism(self) -> f32 {
+        self
+    }
+}
+
+impl Reversal for f32 {
+    type Output = f32;
+
+    fn reversal(self) -> f32 {
+        self
+    }
+}
+
+impl Conjugation for f32 {
+    type Output = f32;
+
+    fn conjugation(self) -> f32 {
+        self
+    }
+}
+
+impl GeometricProduct<f32> for f32 {
+    type Output = f32;
+
+    fn geometric_product(self, other: f32) -> f32 {
+        self * other
+    }
+}
+
+impl OuterProduct<f32> for f32 {
+    type Output = f32;
+
+    fn outer_product(self, other: f32) -> f32 {
+        self * other
+    }
+}
+
+impl InnerProduct<f32> for f32 {
+    type Output = f32;
+
+    fn inner_product(self, other: f32) -> f32 {
+        self * other
+    }
+}
+
+impl LeftContraction<f32> for f32 {
+    type Output = f32;
+
+    fn left_contraction(self, other: f32) -> f32 {
+        self * other
+    }
+}
+
+impl RightContraction<f32> for f32 {
+    type Output = f32;
+
+    fn right_contraction(self, other: f32) -> f32 {
+        self * other
+    }
+}
+
+impl ScalarProduct<f32> for f32 {
+    type Output = f32;
+
+    fn scalar_product(self, other: f32) -> f32 {
+        self * other
+    }
+}
+
+impl SquaredMagnitude for f32 {
+    type Output = f32;
+
+    fn squared_magnitude(self) -> f32 {
+        self.scalar_product(self.reversal())
+    }
+}
+
+impl Magnitude for f32 {
+    type Output = f32;
+
+    fn magnitude(self) -> f32 {
+        self.abs()
+    }
+}
+
+impl Scale for f32 {
+    type Output = f32;
+
+    fn scale(self, other: f32) -> f32 {
+        self.geometric_product(other)
+    }
+}
+
+impl Signum for f32 {
+    type Output = f32;
+
+    fn signum(self) -> f32 {
+        f32::signum(self)
+    }
+}
+
+impl Inverse for f32 {
+    type Output = f32;
+
+    fn inverse(self) -> f32 {
+        1.0 / self
+    }
+}
+
+impl GeometricQuotient<f32> for f32 {
+    type Output = f32;
+
+    fn geometric_quotient(self, other: f32) -> f32 {
+        self.geometric_product(other.inverse())
+    }
+}
+
+impl Transformation<f32> for f32 {
+    type Output = f32;
+
+    fn transformation(self, other: f32) -> f32 {
+        self.geometric_product(other)
+            .geometric_product(self.reversal())
     }
 }
 
@@ -54,7 +181,7 @@ impl Ln for epga1d::ComplexNumber {
     type Output = Self;
 
     fn ln(self) -> Self {
-        Self::new(self.magnitude()[0].ln(), self.arg())
+        Self::new(self.magnitude().ln(), self.arg())
     }
 }
 
@@ -62,7 +189,7 @@ impl Powf for epga1d::ComplexNumber {
     type Output = Self;
 
     fn powf(self, exponent: f32) -> Self {
-        Self::from_polar(self.magnitude()[0].powf(exponent), self.arg() * exponent)
+        Self::from_polar(self.magnitude().powf(exponent), self.arg() * exponent)
     }
 }
 

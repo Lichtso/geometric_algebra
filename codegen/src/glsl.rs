@@ -10,7 +10,8 @@ fn emit_data_type<W: std::io::Write>(collector: &mut W, data_type: &DataType) ->
         DataType::Integer => collector.write_all(b"int"),
         DataType::SimdVector(size) if *size == 1 => collector.write_all(b"float"),
         DataType::SimdVector(size) => collector.write_fmt(format_args!("vec{}", *size)),
-        DataType::MultiVector(class) => collector.write_fmt(format_args!("{}", class.class_name)),
+        DataType::MultiVector(class) if class.is_scalar() => collector.write_all(b"float"),
+        DataType::MultiVector(class) => collector.write_all(class.class_name.as_bytes()),
     }
 }
 
@@ -19,6 +20,9 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
         ExpressionContent::None => unreachable!(),
         ExpressionContent::Variable(_data_type, name) => {
             collector.write_all(name.bytes().collect::<Vec<_>>().as_slice())?;
+        }
+        ExpressionContent::InvokeClassMethod(class, "Constructor", arguments) if class.is_scalar() => {
+            emit_expression(collector, &arguments[0].1)?;
         }
         ExpressionContent::InvokeClassMethod(_, _, arguments) | ExpressionContent::InvokeInstanceMethod(_, _, _, _, arguments) => {
             match &expression.content {
@@ -78,7 +82,9 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
         }
         ExpressionContent::Access(inner_expression, array_index) => {
             emit_expression(collector, inner_expression)?;
-            collector.write_fmt(format_args!(".g{}", array_index))?;
+            if !inner_expression.is_scalar() {
+                collector.write_fmt(format_args!(".g{}", array_index))?;
+            }
         }
         ExpressionContent::Swizzle(inner_expression, indices) => {
             emit_expression(collector, inner_expression)?;
@@ -88,22 +94,28 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
             }
         }
         ExpressionContent::Gather(inner_expression, indices) => {
-            if expression.size > 1 {
-                emit_data_type(collector, &DataType::SimdVector(expression.size))?;
-                collector.write_all(b"(")?;
-            }
-            for (i, (array_index, component_index)) in indices.iter().enumerate() {
-                if i > 0 {
-                    collector.write_all(b", ")?;
-                }
+            if expression.size == 1 && inner_expression.is_scalar() {
                 emit_expression(collector, inner_expression)?;
-                collector.write_fmt(format_args!(".g{}", array_index))?;
-                if inner_expression.size > 1 {
-                    collector.write_fmt(format_args!(".{}", COMPONENT[*component_index]))?;
+            } else {
+                if expression.size > 1 {
+                    emit_data_type(collector, &DataType::SimdVector(expression.size))?;
+                    collector.write_all(b"(")?;
                 }
-            }
-            if expression.size > 1 {
-                collector.write_all(b")")?;
+                for (i, (array_index, component_index)) in indices.iter().enumerate() {
+                    if i > 0 {
+                        collector.write_all(b", ")?;
+                    }
+                    emit_expression(collector, inner_expression)?;
+                    if !inner_expression.is_scalar() {
+                        collector.write_fmt(format_args!(".g{}", array_index))?;
+                        if inner_expression.size > 1 {
+                            collector.write_fmt(format_args!(".{}", COMPONENT[*component_index]))?;
+                        }
+                    }
+                }
+                if expression.size > 1 {
+                    collector.write_all(b")")?;
+                }
             }
         }
         ExpressionContent::Constant(data_type, values) => match data_type {
@@ -163,6 +175,9 @@ pub fn emit_code<W: std::io::Write>(collector: &mut W, ast_node: &AstNode, inden
         AstNode::None => {}
         AstNode::Preamble => {}
         AstNode::ClassDefinition { class } => {
+            if class.is_scalar() {
+                return Ok(());
+            }
             collector.write_fmt(format_args!("struct {} {{\n", class.class_name))?;
             for (i, group) in class.grouped_basis.iter().enumerate() {
                 emit_indentation(collector, indentation + 1)?;
@@ -212,7 +227,8 @@ pub fn emit_code<W: std::io::Write>(collector: &mut W, ast_node: &AstNode, inden
             collector.write_all(b"}\n")?;
         }
         AstNode::TraitImplementation { result, parameters, body } => {
-            collector.write_fmt(format_args!("{} ", result.multi_vector_class().class_name))?;
+            emit_data_type(collector, &result.data_type)?;
+            collector.write_all(b" ")?;
             match parameters.len() {
                 0 => camel_to_snake_case(collector, &result.multi_vector_class().class_name)?,
                 1 if result.name == "Into" => {

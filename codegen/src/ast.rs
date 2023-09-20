@@ -7,6 +7,16 @@ pub enum DataType<'a> {
     MultiVector(&'a MultiVectorClass),
 }
 
+impl DataType<'_> {
+    pub fn is_scalar(&self) -> bool {
+        match self {
+            Self::SimdVector(1) => true,
+            Self::MultiVector(multi_vector_class) => multi_vector_class.is_scalar(),
+            _ => false,
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ExpressionContent<'a> {
     None,
@@ -40,6 +50,19 @@ pub enum ExpressionContent<'a> {
 pub struct Expression<'a> {
     pub size: usize,
     pub content: ExpressionContent<'a>,
+}
+
+impl Expression<'_> {
+    pub fn is_scalar(&self) -> bool {
+        if self.size > 1 {
+            return false;
+        }
+        match &self.content {
+            ExpressionContent::Variable(data_type, _) => data_type.is_scalar(),
+            ExpressionContent::InvokeInstanceMethod(_, _, _, result_data_type, _) => result_data_type.is_scalar(),
+            _ => false,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
