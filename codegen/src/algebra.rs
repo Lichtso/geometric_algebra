@@ -27,7 +27,7 @@ impl<'a> GeometricAlgebra<'a> {
 
 pub type BasisElementIndex = u16;
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct BasisElement {
     pub scalar: isize,
     pub index: BasisElementIndex,
@@ -275,7 +275,7 @@ impl MultiVectorClassRegistry {
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct MultiVectorClass {
     pub class_name: String,
     pub grouped_basis: Vec<Vec<BasisElement>>,

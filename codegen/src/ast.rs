@@ -1,13 +1,13 @@
 use crate::algebra::MultiVectorClass;
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub enum DataType<'a> {
     Integer,
     SimdVector(usize),
     MultiVector(&'a MultiVectorClass),
 }
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ExpressionContent<'a> {
     None,
     Variable(&'static str),
@@ -30,13 +30,13 @@ pub enum ExpressionContent<'a> {
     BitShiftRight(Box<Expression<'a>>, Box<Expression<'a>>),
 }
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Expression<'a> {
     pub size: usize,
     pub content: ExpressionContent<'a>,
 }
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Parameter<'a> {
     pub name: &'static str,
     pub data_type: DataType<'a>,
