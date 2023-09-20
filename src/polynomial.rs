@@ -1,9 +1,7 @@
 //! Solves polynomials with real valued coefficients up to degree 4
 
 #![allow(clippy::many_single_char_names)]
-use crate::{
-    epga1d::*, GeometricProduct, GeometricQuotient, Powf, Reversal, Scale, SquaredMagnitude,
-};
+use crate::{epga1d::*, GeometricProduct, GeometricQuotient, Powf, Reversal, SquaredMagnitude};
 
 /// Represents a complex root as homogeneous coordinates
 #[derive(Debug, Clone, Copy)]
@@ -94,13 +92,13 @@ pub fn solve_cubic(coefficients: [f32; 4], error_margin: f32) -> (f32, Vec<Root>
     let mut solutions = Vec::with_capacity(3);
     let discriminant = d[1].powi(2) - 4.0 * d[0].powi(3);
     let c = discriminant.sqrt();
-    let c = ((c + ComplexNumber::new(if c + d[1] == 0.0 { -d[1] } else { d[1] }, 0.0)).scale(0.5))
+    let c = ((c + ComplexNumber::new(if c + d[1] == 0.0 { -d[1] } else { d[1] }, 0.0)) * 0.5)
         .powf(1.0 / 3.0);
     for root_of_unity in &ROOTS_OF_UNITY_3 {
         let ci = c.geometric_product(*root_of_unity);
-        let denominator = ci.scale(3.0 * coefficients[3]);
+        let denominator = ci * (3.0 * coefficients[3]);
         let numerator =
-            (ci.scale(-coefficients[2]) - ci.geometric_product(ci) - ComplexNumber::new(d[0], 0.0))
+            (ci * -coefficients[2] - ci.geometric_product(ci) - ComplexNumber::new(d[0], 0.0))
                 .geometric_product(denominator.reversal());
         solutions.push(Root {
             numerator,
@@ -144,19 +142,19 @@ pub fn solve_quartic(coefficients: [f32; 5], error_margin: f32) -> (f32, Vec<Roo
     ];
     let discriminant = d[1].powi(2) - 4.0 * d[0].powi(3);
     let c = discriminant.sqrt();
-    let c = ((c + ComplexNumber::new(if c + d[1] == 0.0 { -d[1] } else { d[1] }, 0.0)).scale(0.5))
+    let c = ((c + ComplexNumber::new(if c + d[1] == 0.0 { -d[1] } else { d[1] }, 0.0)) * 0.5)
         .powf(1.0 / 3.0);
     let e = ((c + ComplexNumber::new(d[0], 0.0).geometric_quotient(c))
-        .scale(1.0 / (3.0 * coefficients[4]))
+        * (1.0 / (3.0 * coefficients[4]))
         - ComplexNumber::new(p * 2.0 / 3.0, 0.0))
     .powf(0.5)
-    .scale(0.5);
+        * 0.5;
     let mut solutions = Vec::with_capacity(4);
     for i in 0..4 {
-        let f = (e.geometric_product(e).scale(-4.0) - ComplexNumber::new(2.0 * p, 0.0)
+        let f = (e.geometric_product(e) * -4.0 - ComplexNumber::new(2.0 * p, 0.0)
             + ComplexNumber::new(if i & 2 == 0 { q } else { -q }, 0.0).geometric_quotient(e))
         .powf(0.5)
-        .scale(0.5);
+            * 0.5;
         let g = ComplexNumber::new(-coefficients[3] / (4.0 * coefficients[4]), 0.0)
             + if i & 2 == 0 { -e } else { e }
             + if i & 1 == 0 { -f } else { f };

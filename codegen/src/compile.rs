@@ -657,13 +657,7 @@ impl MultiVectorClass {
                 name,
                 data_type: geometric_product_result.data_type.clone(),
             },
-            parameters: vec![
-                parameter_a.clone(),
-                Parameter {
-                    name: "other",
-                    data_type: DataType::SimdVector(1),
-                },
-            ],
+            parameters: vec![parameter_a.clone(), parameter_b.clone()],
             body: vec![AstNode::ReturnStatement {
                 expression: Box::new(Expression {
                     size: 1,
@@ -676,7 +670,7 @@ impl MultiVectorClass {
                         geometric_product_result.name,
                         geometric_product_result.data_type.clone(),
                         vec![(
-                            DataType::MultiVector(parameter_b.multi_vector_class()),
+                            parameter_b.data_type.clone(),
                             Expression {
                                 size: 1,
                                 content: ExpressionContent::InvokeClassMethod(
