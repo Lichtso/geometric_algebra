@@ -20,9 +20,9 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
         ExpressionContent::Variable(_data_type, name) => {
             collector.write_all(name.bytes().collect::<Vec<_>>().as_slice())?;
         }
-        ExpressionContent::InvokeClassMethod(_, _, arguments) | ExpressionContent::InvokeInstanceMethod(_, _, _, arguments) => {
+        ExpressionContent::InvokeClassMethod(_, _, arguments) | ExpressionContent::InvokeInstanceMethod(_, _, _, _, arguments) => {
             match &expression.content {
-                ExpressionContent::InvokeInstanceMethod(result_class, inner_expression, method_name, _) => {
+                ExpressionContent::InvokeInstanceMethod(result_class, inner_expression, method_name, _, _) => {
                     if let DataType::MultiVector(result_class) = result_class {
                         camel_to_snake_case(collector, &result_class.class_name)?;
                         collector.write_all(b"_")?;

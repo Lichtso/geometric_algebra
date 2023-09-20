@@ -18,9 +18,9 @@ fn emit_expression<W: std::io::Write>(collector: &mut W, expression: &Expression
         ExpressionContent::Variable(_data_type, name) => {
             collector.write_all(name.bytes().collect::<Vec<_>>().as_slice())?;
         }
-        ExpressionContent::InvokeClassMethod(_, method_name, arguments) | ExpressionContent::InvokeInstanceMethod(_, _, method_name, arguments) => {
+        ExpressionContent::InvokeClassMethod(_, method_name, arguments) | ExpressionContent::InvokeInstanceMethod(_, _, method_name, _, arguments) => {
             match &expression.content {
-                ExpressionContent::InvokeInstanceMethod(_result_class, inner_expression, _, _) => {
+                ExpressionContent::InvokeInstanceMethod(_result_class, inner_expression, _, _, _) => {
                     emit_expression(collector, inner_expression)?;
                     collector.write_all(b".")?;
                 }
